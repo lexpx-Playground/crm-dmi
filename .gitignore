@@ -2,38 +2,40 @@
 # Dependencies
 node_modules/
 
-# Environment variables
-.env
-.env.local
-.env.*
-
 # Build outputs
 dist/
 build/
-coverage/
-htmlcov/
+target/
 
-# TypeScript/JavaScript
+# TypeScript/JavaScript build artifacts
+*.js.map
 *.tsbuildinfo
-*.tsx.swp
 
-# Logs
-*.log
+# Environment variables
+.env
+.env.local
+*.env.*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
 
 # OS generated files
 .DS_Store
 Thumbs.db
 
-# Editor
-.vscode/
-.idea/
+# Logs
+*.log
 
-# Temporary files
-*.tmp
-*.swp
-*.swo
+# Coverage reports
+coverage/
+htmlcov/
+*.coverage
 
-# Python (if any Python files exist in the project)
+# Python cache (if any Python files exist in project)
 __pycache__/
 *.pyc
 *.pyo
@@ -41,32 +43,25 @@ __pycache__/
 .Python
 *.so
 
-# Testing
-.pytest_cache/
-.mypy_cache/
-.coverage
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
 
-# Compression
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
+# Testing
+.mypy_cache/
+.pytest_cache/
+.nyc_output/
+coverage/
+
+# Package manager caches
+.npm/
+.yarn/
+.pnpm-store/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
 ```
