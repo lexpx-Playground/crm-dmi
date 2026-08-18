@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coil-to-Quote CRM - POC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://unpkg.com/chart.js"></script>
+    <script src="https://unpkg.com/react-chartjs-2/dist/react-chartjs-2.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .sidebar-item:hover { background: rgba(255,255,255,0.1); }
+        .sidebar-item.active { background: rgba(255,255,255,0.2); }
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { 
+            LayoutDashboard, Users, Package, FileText, Settings, 
+            LogOut, Menu, X, Plus, Search, Bell, User,
+            TrendingUp, AlertTriangle, CheckCircle, Clock,
+            ArrowUpRight, ArrowDownRight, DollarSign, Scale
+        } = lucide;
+
+        // Mock Data
+        const mockSettings = {
+            currency_code: 'SGD',
+            currency_symbol: '$',
+            tax_name: 'GST',
+            tax_rate: 9,
+            tax_inclusive: false,
+            min_ton_value: 12000,
+            min_ton_mode: 'warn',
+            quote_validity_days: 7,
+            density_steel: 7.85,
+            density_aluminium: 2.70
+        };
+
+        const mockClients = [
+            { id: 1, name: 'ABC Construction Pte Ltd', phone: '+65 9123 4567', email: 'info@abcconstruct.sg', address: '123 Jurong East Street' },
+            { id: 2, name: 'MetalWorks Industries', phone: '+65 8765 4321', email: 'sales@metalworks.com', address: '45 Tuas Avenue' },
+            { id: 3, name: 'RoofTech Solutions', phone: '+65 6543 2109', email: 'contact@rooftech.sg', address: '78 Woodlands Industrial' }
+        ];
+
+        const mockProducts = [
+            { id: 1, name: 'Weathertip 200', type: 'sheet', material: 'steel', prices: { 0.35: 38.00, 0.40: 42.00, 0.45: 45.00, 0.50: 50.00, 0.60: 58.00 } },
+            { id: 2, name: 'Flashing', type: 'accessory', material: 'steel', sizes: [300, 400, 450], prices: { 0.35: 12.00, 0.40: 14.00, 0.45: 16.00, 0.50: 18.00 } },
+            { id: 3, name: 'Capping', type: 'accessory', material: 'steel', sizes: [300, 400, 450], prices: { 0.35: 15.00, 0.40: 17.00, 0.45: 19.00 } },
+            { id: 4, name: 'Clip', type: 'accessory', material: 'steel', prices: { 0.35: 2.50, 0.40: 2.80, 0.45: 3.00 } },
+            { id: 5, name: 'Zip Screw', type: 'accessory', material: 'steel', prices: { 0.35: 0.50, 0.40: 0.55, 0.45: 0.60 } }
+        ];
+
+        const mockSuppliers = [
+            { id: 1, name: 'ABC Steel Traders', contact: '+65 6234 5678' },
+            { id: 2, name: 'MetalOne Supplies', contact: '+65 6345 6789' }
+        ];
+
+        const mockPOs = [
+            { id: 1, po_number: 'PO-1023', supplier_id: 1, status: 'arrived', price: 2850, price_unit: 'per_ton', coils: [
+                { id: 101, coil_code: 'SC-88121-A', material: 'steel', thickness: 0.45, width: 1200, weight: 5000, length: 1179.5, status: 'balance', remaining_weight: 3200, remaining_length: 754 },
+                { id: 102, coil_code: 'SC-88121-B', material: 'steel', thickness: 0.45, width: 1200, weight: 4980, length: 1174.8, status: 'in_use', remaining_weight: 2100, remaining_length: 493 },
+                { id: 103, coil_code: 'SC-88122', material: 'steel', thickness: 0.60, width: 1200, weight: 6000, length: 1061.6, status: 'arrived', remaining_weight: 6000, remaining_length: 1061.6 }
+            ]},
+            { id: 2, po_number: 'PO-1024', supplier_id: 2, status: 'in_transit', price: 6.20, price_unit: 'per_m2', coils: [
+                { id: 201, coil_code: 'AL-5501', material: 'aluminium', thickness: 0.70, width: 1000, weight: 2000, length: 1058.2, status: 'in_transit', remaining_weight: 2000, remaining_length: 1058.2 }
+            ]}
+        ];
+
+        const mockQuotes = [
+            { id: 1, quote_no: 'Q-00091', client_id: 1, project_name: 'Warehouse Roof – Jurong', status: 'sent', issue_date: '2025-01-10', valid_until: '2025-01-17', total: 15672.00, lines: [
+                { product_id: 1, description: 'Weathertip 200 – steel 0.45mm', qty: 320, unit: 'm²', price: 45.00, total: 14400.00 },
+                { product_id: 2, description: 'Flashing 300', qty: 60, unit: 'm', price: 16.00, total: 960.00 },
+                { product_id: 4, description: 'Clip', qty: 150, unit: 'pc', price: 3.00, total: 450.00 }
+            ]},
+            { id: 2, quote_no: 'Q-00092', client_id: 2, project_name: 'Factory Extension', status: 'accepted', issue_date: '2025-01-08', valid_until: '2025-01-15', total: 8450.00, lines: [
+                { product_id: 1, description: 'Weathertip 200 – steel 0.50mm', qty: 150, unit: 'm²', price: 50.00, total: 7500.00 },
+                { product_id: 3, description: 'Capping 400', qty: 50, unit: 'm', price: 19.00, total: 950.00 }
+            ]},
+            { id: 3, quote_no: 'Q-00093', client_id: 3, project_name: 'Office Renovation', status: 'draft', issue_date: '2025-01-12', valid_until: '2025-01-19', total: 5200.00, lines: [
+                { product_id: 2, description: 'Flashing 400', qty: 200, unit: 'm', price: 18.00, total: 3600.00 },
+                { product_id: 5, description: 'Zip Screw', qty: 2000, unit: 'pc', price: 0.60, total: 1200.00 },
+                { product_id: 4, description: 'Clip', qty: 133, unit: 'pc', price: 3.00, total: 400.00 }
+            ]}
+        ];
+
+        const mockMovements = [
+            { id: 1, coil_id: 101, type: 'arrival', date: '2025-01-05', weight: 5000, length: 1179.5 },
+            { id: 2, coil_id: 101, type: 'usage', date: '2025-01-08', weight: 1800, length: 425, batch_id: 'BATCH-001' },
+            { id: 3, coil_id: 102, type: 'arrival', date: '2025-01-05', weight: 4980, length: 1174.8 },
+            { id: 4, coil_id: 102, type: 'usage', date: '2025-01-09', weight: 2880, length: 681, batch_id: 'BATCH-002' },
+            { id: 5, coil_id: 103, type: 'arrival', date: '2025-01-06', weight: 6000, length: 1061.6 }
+        ];
+
+        const mockUsers = [
+            { id: 1, name: 'Admin User', email: 'admin@coilquote.com', role: 'superadmin' },
+            { id: 2, name: 'Sales Rep', email: 'sales@coilquote.com', role: 'sales' },
+            { id: 3, name: 'Warehouse Staff', email: 'warehouse@coilquote.com', role: 'warehouse' }
+        ];
+
+        // Components
+        function Sidebar({ currentPage, setCurrentPage, currentUser, onLogout }) {
+            const [isOpen, setIsOpen] = useState(true);
+            
+            const menuItems = [
+                { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'sales', 'warehouse'] },
+                { id: 'quotes', label: 'Quotations', icon: FileText, roles: ['superadmin', 'sales'] },
+                { id: 'clients', label: 'Clients', icon: Users, roles: ['superadmin', 'sales'] },
+                { id: 'inventory', label: 'Inventory', icon: Package, roles: ['superadmin', 'warehouse'] },
+                { id: 'pos', label: 'Purchase Orders', icon: DollarSign, roles: ['superadmin', 'warehouse'] },
+                { id: 'settings', label: 'Settings', icon: Settings, roles: ['superadmin'] }
+            ];
+
+            const filteredMenu = menuItems.filter(item => item.roles.includes(currentUser.role));
+
+            return (
+                <div className={`fixed left-0 top-0 h-full bg-gradient-to-b from-purple-900 to-indigo-900 text-white transition-all duration-300 z-50 ${isOpen ? 'w-64' : 'w-20'}`}>
+                    <div className="p-4 border-b border-purple-700 flex items-center justify-between">
+                        {isOpen && <h1 className="text-xl font-bold">CoilQuote</h1>}
+                        <button onClick={() => setIsOpen(!isOpen)} className="p-1 hover:bg-purple-700 rounded">
+                            {isOpen ? <X size={20} /> : <Menu size={20} />}
+                        </button>
+                    </div>
+                    
+                    <nav className="mt-4">
+                        {filteredMenu.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setCurrentPage(item.id)}
+                                className={`w-full flex items-center p-4 sidebar-item transition-colors ${currentPage === item.id ? 'active' : ''}`}
+                            >
+                                <item.icon size={20} className="mr-3" />
+                                {isOpen && <span>{item.label}</span>}
+                            </button>
+                        ))}
+                    </nav>
+
+                    <div className="absolute bottom-0 w-full p-4 border-t border-purple-700">
+                        <div className="flex items-center mb-3">
+                            <User size={20} className="mr-3" />
+                            {isOpen && (
+                                <div>
+                                    <p className="font-medium">{currentUser.name}</p>
+                                    <p className="text-xs text-purple-300 capitalize">{currentUser.role}</p>
+                                </div>
+                            )}
+                        </div>
+                        <button onClick={onLogout} className="flex items-center text-purple-300 hover:text-white">
+                            <LogOut size={16} className="mr-2" />
+                            {isOpen && <span>Logout</span>}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function StatCard({ title, value, subtitle, icon: Icon, trend, color }) {
+            return (
+                <div className="bg-white rounded-lg card-shadow p-6 stat-card">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-gray-500 text-sm">{title}</p>
+                            <p className="text-2xl font-bold mt-1">{value}</p>
+                            {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
+                        </div>
+                        <div className={`p-3 rounded-full ${color}`}>
+                            <Icon size={24} className="text-white" />
+                        </div>
+                    </div>
+                    {trend && (
+                        <div className="flex items-center mt-4">
+                            {trend > 0 ? (
+                                <ArrowUpRight size={16} className="text-green-500 mr-1" />
+                            ) : (
+                                <ArrowDownRight size={16} className="text-red-500 mr-1" />
+                            )}
+                            <span className={`text-sm ${trend > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                {Math.abs(trend)}% from last month
+                            </span>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function Dashboard({ quotes, pos, coils, settings }) {
+            const totalQuotesValue = quotes.reduce((sum, q) => sum + q.total, 0);
+            const activeQuotes = quotes.filter(q => q.status === 'sent' || q.status === 'draft').length;
+            const totalStockWeight = coils.reduce((sum, c) => sum + (c.remaining_weight || 0), 0);
+            const pendingPOs = pos.filter(p => p.status === 'in_transit').length;
+
+            return (
+                <div className="space-y-6">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
+                        <p className="text-gray-500">Welcome back! Here's what's happening today.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <StatCard 
+                            title="Total Quotes (Month)" 
+                            value={`${settings.currency_symbol}${totalQuotesValue.toLocaleString()}`}
+                            subtitle={`${quotes.length} quotations`}
+                            icon={FileText}
+                            trend={12}
+                            color="bg-blue-500"
+                        />
+                        <StatCard 
+                            title="Active Quotes" 
+                            value={activeQuotes}
+                            subtitle="Pending client response"
+                            icon={Clock}
+                            trend={-5}
+                            color="bg-yellow-500"
+                        />
+                        <StatCard 
+                            title="Stock on Hand" 
+                            value={`${(totalStockWeight / 1000).toFixed(2)} tons`}
+                            subtitle={`${coils.length} coils`}
+                            icon={Package}
+                            trend={8}
+                            color="bg-green-500"
+                        />
+                        <StatCard 
+                            title="Pending Deliveries" 
+                            value={pendingPOs}
+                            subtitle="In transit"
+                            icon={TrendingUp}
+                            color="bg-purple-500"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-lg card-shadow p-6">
+                            <h3 className="font-semibold text-gray-800 mb-4">Recent Quotations</h3>
+                            <div className="space-y-3">
+                                {quotes.slice(0, 5).map(quote => (
+                                    <div key={quote.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                                        <div>
+                                            <p className="font-medium">{quote.quote_no}</p>
+                                            <p className="text-sm text-gray-500">{mockClients.find(c => c.id === quote.client_id)?.name}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-semibold">{settings.currency_symbol}{quote.total.toLocaleString()}</p>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${
+                                                quote.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                                                quote.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {quote.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg card-shadow p-6">
+                            <h3 className="font-semibold text-gray-800 mb-4">Stock Overview</h3>
+                            <div className="space-y-3">
+                                {coils.slice(0, 5).map(coil => (
+                                    <div key={coil.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                                        <div>
+                                            <p className="font-medium">{coil.coil_code}</p>
+                                            <p className="text-sm text-gray-500">{coil.material} {coil.thickness}mm × {coil.width}mm</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-semibold">{(coil.remaining_weight / 1000).toFixed(2)} tons</p>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${
+                                                coil.status === 'arrived' ? 'bg-green-100 text-green-700' :
+                                                coil.status === 'in_use' ? 'bg-blue-100 text-blue-700' :
+                                                coil.status === 'balance' ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {coil.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg card-shadow p-6">
+                        <h3 className="font-semibold text-gray-800 mb-4">Quick Actions</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                                <Plus size={24} className="mx-auto text-blue-600 mb-2" />
+                                <p className="text-sm font-medium text-blue-700">New Quote</p>
+                            </button>
+                            <button className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                                <Package size={24} className="mx-auto text-green-600 mb-2" />
+                                <p className="text-sm font-medium text-green-700">Scan Coil</p>
+                            </button>
+                            <button className="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+                                <FileText size={24} className="mx-auto text-purple-600 mb-2" />
+                                <p className="text-sm font-medium text-purple-700">Import PO</p>
+                            </button>
+                            <button className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors">
+                                <Search size={24} className="mx-auto text-orange-600 mb-2" />
+                                <p className="text-sm font-medium text-orange-700">Warranty Lookup</p>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function QuotesList({ quotes, settings }) {
+            return (
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-800">Quotations</h2>
+                            <p className="text-gray-500">Manage and track all quotations</p>
+                        </div>
+                        <button className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                            <Plus size={20} className="mr-2" />
+                            New Quote
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-lg card-shadow overflow-hidden">
+                        <div className="p-4 border-b flex items-center gap-4">
+                            <div className="relative flex-1">
+                                <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search quotes..." 
+                                    className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                            </div>
+                        </div>
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote No</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valid Until</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {quotes.map(quote => (
+                                    <tr key={quote.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-medium">{quote.quote_no}</td>
+                                        <td className="px-6 py-4">{mockClients.find(c => c.id === quote.client_id)?.name}</td>
+                                        <td className="px-6 py-4">{quote.project_name}</td>
+                                        <td className="px-6 py-4">{quote.valid_until}</td>
+                                        <td className="px-6 py-4 font-semibold">{settings.currency_symbol}{quote.total.toLocaleString()}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 text-xs rounded-full ${
+                                                quote.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                                                quote.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                                                quote.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {quote.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <button className="text-purple-600 hover:text-purple-800 text-sm font-medium">View</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        function Inventory({ coils, settings }) {
+            const stockByMaterial = useMemo(() => {
+                const grouped = {};
+                coils.forEach(coil => {
+                    const key = `${coil.material}-${coil.thickness}`;
+                    if (!grouped[key]) {
+                        grouped[key] = { material: coil.material, thickness: coil.thickness, totalWeight: 0, coils: [] };
+                    }
+                    grouped[key].totalWeight += coil.remaining_weight || 0;
+                    grouped[key].coils.push(coil);
+                });
+                return Object.values(grouped);
+            }, [coils]);
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-800">Inventory</h2>
+                            <p className="text-gray-500">Live stock balance and coil tracking</p>
+                        </div>
+                        <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            <Package size={20} className="mr-2" />
+                            Scan Arrival
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {stockByMaterial.map((stock, idx) => (
+                            <div key={idx} className="bg-white rounded-lg card-shadow p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-semibold capitalize">{stock.material} {stock.thickness}mm</h3>
+                                    <Scale size={20} className="text-gray-400" />
+                                </div>
+                                <p className="text-3xl font-bold text-gray-800">{(stock.totalWeight / 1000).toFixed(2)}</p>
+                                <p className="text-gray-500">tons ({stock.coils.length} coils)</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-white rounded-lg card-shadow overflow-hidden">
+                        <div className="p-4 border-b">
+                            <h3 className="font-semibold text-gray-800">All Coils</h3>
+                        </div>
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coil Code</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dimensions</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PO</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {coils.map(coil => (
+                                    <tr key={coil.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-medium">{coil.coil_code}</td>
+                                        <td className="px-6 py-4 capitalize">{coil.material}</td>
+                                        <td className="px-6 py-4">{coil.thickness}mm × {coil.width}mm</td>
+                                        <td className="px-6 py-4">
+                                            {(coil.remaining_weight / 1000).toFixed(2)} tons<br/>
+                                            <span className="text-xs text-gray-500">{coil.remaining_length.toFixed(1)}m</span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 text-xs rounded-full ${
+                                                coil.status === 'arrived' ? 'bg-green-100 text-green-700' :
+                                                coil.status === 'in_use' ? 'bg-blue-100 text-blue-700' :
+                                                coil.status === 'balance' ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {coil.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500">
+                                            {mockPOs.find(p => p.coils.some(c => c.id === coil.id))?.po_number}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        function ClientsList({ clients }) {
+            return (
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-800">Clients</h2>
+                            <p className="text-gray-500">Manage client information</p>
+                        </div>
+                        <button className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                            <Plus size={20} className="mr-2" />
+                            Add Client
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {clients.map(client => (
+                            <div key={client.id} className="bg-white rounded-lg card-shadow p-6">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="p-3 bg-purple-100 rounded-full">
+                                        <User size={24} className="text-purple-600" />
+                                    </div>
+                                    <button className="text-gray-400 hover:text-gray-600">•••</button>
+                                </div>
+                                <h3 className="font-semibold text-lg mb-2">{client.name}</h3>
+                                <div className="space-y-2 text-sm text-gray-600">
+                                    <p>📞 {client.phone}</p>
+                                    <p>✉️ {client.email}</p>
+                                    <p>📍 {client.address}</p>
+                                </div>
+                                <button className="w-full mt-4 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50">
+                                    View History
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function POSList({ pos, suppliers }) {
+            return (
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-800">Purchase Orders</h2>
+                            <p className="text-gray-500">Track supplier orders and coil arrivals</p>
+                        </div>
+                        <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            <Plus size={20} className="mr-2" />
+                            Import PO
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-lg card-shadow overflow-hidden">
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PO Number</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coils</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {pos.map(po => (
+                                    <tr key={po.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-medium">{po.po_number}</td>
+                                        <td className="px-6 py-4">{suppliers.find(s => s.id === po.supplier_id)?.name}</td>
+                                        <td className="px-6 py-4">
+                                            {po.price_unit === 'per_ton' ? `$${po.price}/ton` : `$${po.price}/m²`}
+                                        </td>
+                                        <td className="px-6 py-4">{po.coils.length}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 text-xs rounded-full ${
+                                                po.status === 'arrived' ? 'bg-green-100 text-green-700' :
+                                                po.status === 'in_transit' ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {po.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <button className="text-purple-600 hover:text-purple-800 text-sm font-medium mr-3">View</button>
+                                            {po.status === 'in_transit' && (
+                                                <button className="text-green-600 hover:text-green-800 text-sm font-medium">Scan</button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        function SettingsPage({ settings, setSettings }) {
+            const [localSettings, setLocalSettings] = useState(settings);
+
+            const handleChange = (key, value) => {
+                setLocalSettings(prev => ({ ...prev, [key]: value }));
+                setSettings(prev => ({ ...prev, [key]: value }));
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">Settings</h2>
+                        <p className="text-gray-500">Configure system parameters</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-lg card-shadow p-6">
+                            <h3 className="font-semibold text-gray-800 mb-4">Currency & Tax</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Currency Code</label>
+                                    <input 
+                                        type="text" 
+                                        value={localSettings.currency_code}
+                                        onChange={(e) => handleChange('currency_code', e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Currency Symbol</label>
+                                    <input 
+                                        type="text" 
+                                        value={localSettings.currency_symbol}
+                                        onChange={(e) => handleChange('currency_symbol', e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tax Name</label>
+                                    <input 
+                                        type="text" 
+                                        value={localSettings.tax_name}
+                                        onChange={(e) => handleChange('tax_name', e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+                                    <input 
+                                        type="number" 
+                                        value={localSettings.tax_rate}
+                                        onChange={(e) => handleChange('tax_rate', parseFloat(e.target.value))}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div className="flex items-center">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={localSettings.tax_inclusive}
+                                        onChange={(e) => handleChange('tax_inclusive', e.target.checked)}
+                                        className="mr-2"
+                                    />
+                                    <label className="text-sm text-gray-700">Tax Inclusive Pricing</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg card-shadow p-6">
+                            <h3 className="font-semibold text-gray-800 mb-4">Business Rules</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Min $/Ton Value</label>
+                                    <input 
+                                        type="number" 
+                                        value={localSettings.min_ton_value}
+                                        onChange={(e) => handleChange('min_ton_value', parseFloat(e.target.value))}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Min $/Ton Mode</label>
+                                    <select 
+                                        value={localSettings.min_ton_mode}
+                                        onChange={(e) => handleChange('min_ton_mode', e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    >
+                                        <option value="warn">Warn</option>
+                                        <option value="block">Block</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Quote Validity (Days)</label>
+                                    <input 
+                                        type="number" 
+                                        value={localSettings.quote_validity_days}
+                                        onChange={(e) => handleChange('quote_validity_days', parseInt(e.target.value))}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg card-shadow p-6">
+                            <h3 className="font-semibold text-gray-800 mb-4">Material Densities</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Steel Density (kg/m³)</label>
+                                    <input 
+                                        type="number" 
+                                        step="0.01"
+                                        value={localSettings.density_steel}
+                                        onChange={(e) => handleChange('density_steel', parseFloat(e.target.value))}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Aluminium Density (kg/m³)</label>
+                                    <input 
+                                        type="number" 
+                                        step="0.01"
+                                        value={localSettings.density_aluminium}
+                                        onChange={(e) => handleChange('density_aluminium', parseFloat(e.target.value))}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-lg card-shadow p-6">
+                            <h3 className="font-semibold text-gray-800 mb-4">Company Branding</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                                    <input 
+                                        type="text" 
+                                        defaultValue="CoilQuote Pte Ltd"
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo Upload</label>
+                                    <input 
+                                        type="file" 
+                                        accept="image/*"
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Terms & Conditions</label>
+                                    <textarea 
+                                        rows={3}
+                                        defaultValue="Payment terms: 30 days. Prices valid for 7 days from quotation date."
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function LoginScreen({ onLogin }) {
+            const [selectedRole, setSelectedRole] = useState('superadmin');
+
+            return (
+                <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                        <div className="text-center mb-8">
+                            <div className="inline-flex p-4 bg-purple-100 rounded-full mb-4">
+                                <Package size={48} className="text-purple-600" />
+                            </div>
+                            <h1 className="text-3xl font-bold text-gray-800">Coil-to-Quote CRM</h1>
+                            <p className="text-gray-500 mt-2">Proof of Concept</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <p className="text-sm text-gray-600 text-center mb-4">Select a role to demo:</p>
+                            
+                            {mockUsers.map(user => (
+                                <button
+                                    key={user.id}
+                                    onClick={() => onLogin(user)}
+                                    className={`w-full p-4 rounded-lg border-2 transition-all ${
+                                        selectedRole === user.role 
+                                            ? 'border-purple-600 bg-purple-50' 
+                                            : 'border-gray-200 hover:border-purple-300'
+                                    }`}
+                                >
+                                    <div className="flex items-center">
+                                        <div className={`p-3 rounded-full mr-4 ${
+                                            user.role === 'superadmin' ? 'bg-purple-100' :
+                                            user.role === 'sales' ? 'bg-blue-100' :
+                                            'bg-green-100'
+                                        }`}>
+                                            <User size={24} className={`
+                                                ${user.role === 'superadmin' ? 'text-purple-600' :
+                                                  user.role === 'sales' ? 'text-blue-600' :
+                                                  'text-green-600'}
+                                            `} />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-semibold">{user.name}</p>
+                                            <p className="text-sm text-gray-500 capitalize">{user.role}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        <p className="text-xs text-gray-400 text-center mt-6">
+                            No password required for POC demo
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
+            const [currentUser, setCurrentUser] = useState(null);
+            const [currentPage, setCurrentPage] = useState('dashboard');
+            const [settings, setSettings] = useState(mockSettings);
+            const [quotes] = useState(mockQuotes);
+            const [clients] = useState(mockClients);
+            const [pos] = useState(mockPOs);
+            const [coils] = useState(mockPOs.flatMap(po => po.coils));
+
+            const handleLogin = (user) => {
+                setCurrentUser(user);
+            };
+
+            const handleLogout = () => {
+                setCurrentUser(null);
+                setCurrentPage('dashboard');
+            };
+
+            if (!currentUser) {
+                return <LoginScreen onLogin={handleLogin} />;
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    <Sidebar 
+                        currentPage={currentPage} 
+                        setCurrentPage={setCurrentPage} 
+                        currentUser={currentUser}
+                        onLogout={handleLogout}
+                    />
+                    
+                    <main className={`transition-all duration-300 ${currentPage !== 'dashboard' ? 'ml-64' : 'ml-64'}`}>
+                        <div className="p-8">
+                            {currentPage === 'dashboard' && (
+                                <Dashboard quotes={quotes} pos={pos} coils={coils} settings={settings} />
+                            )}
+                            {currentPage === 'quotes' && (
+                                <QuotesList quotes={quotes} settings={settings} />
+                            )}
+                            {currentPage === 'clients' && (
+                                <ClientsList clients={clients} />
+                            )}
+                            {currentPage === 'inventory' && (
+                                <Inventory coils={coils} settings={settings} />
+                            )}
+                            {currentPage === 'pos' && (
+                                <POSList pos={pos} suppliers={mockSuppliers} />
+                            )}
+                            {currentPage === 'settings' && (
+                                <SettingsPage settings={settings} setSettings={setSettings} />
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
