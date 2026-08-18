@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coil-to-Quote CRM - POC v2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        }
+        
+        .nav-item {
+            transition: all 0.3s ease;
+        }
+        
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-item.active {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.4);
+        }
+        
+        .input-field {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .table-row:hover {
+            background: #f8fafc;
+        }
+        
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+        
+        .slide-up-enter-active, .slide-up-leave-active {
+            transition: all 0.3s ease;
+        }
+        
+        .slide-up-enter-from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .slide-up-leave-to {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+        }
+        
+        .quotation-template {
+            font-family: 'Times New Roman', Times, serif;
+            line-height: 1.5;
+            color: #000;
+            background: white;
+            padding: 40px;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+        
+        .quotation-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .quotation-table th,
+        .quotation-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .quotation-table th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen flex">
+        <!-- Sidebar -->
+        <div class="sidebar w-64 no-print flex flex-col">
+            <div class="p-6">
+                <h1 class="text-white text-xl font-bold">
+                    <i class="fas fa-coil mr-2"></i>CoilCRM
+                </h1>
+                <p class="text-gray-400 text-xs mt-1">POC v2.0</p>
+            </div>
+            
+            <div class="px-4 mb-4">
+                <div class="bg-gray-800 rounded-lg p-3">
+                    <div class="flex items-center mb-2">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">
+                            {{ currentUser.name.charAt(0) }}
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-white text-sm font-medium">{{ currentUser.name }}</p>
+                            <p class="text-gray-400 text-xs capitalize">{{ currentUser.role }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="flex-1 px-3">
+                <a v-for="item in navItems" :key="item.id"
+                   @click="currentModule = item.id"
+                   :class="['nav-item flex items-center px-4 py-3 rounded-lg mb-2 cursor-pointer text-white', 
+                            currentModule === item.id ? 'active' : '']">
+                    <i :class="['fas', item.icon, 'w-5']"></i>
+                    <span class="ml-3">{{ item.label }}</span>
+                </a>
+            </nav>
+            
+            <div class="p-4">
+                <button @click="switchRole" class="w-full bg-gray-800 hover:bg-gray-700 text-white py-2 px-4 rounded-lg text-sm transition">
+                    <i class="fas fa-sync-alt mr-2"></i>Switch Role
+                </button>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Bar -->
+            <div class="bg-white shadow-sm no-print">
+                <div class="px-6 py-4 flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-800">{{ moduleTitle }}</h2>
+                    <div class="flex items-center space-x-4">
+                        <button v-if="canCreateQuotation && currentModule === 'quotations'"
+                                @click="showCreateModal = true"
+                                class="btn-primary text-white px-6 py-2 rounded-lg font-medium">
+                            <i class="fas fa-plus mr-2"></i>New Quotation
+                        </button>
+                        <div class="text-sm text-gray-600">
+                            <i class="fas fa-calendar-alt mr-2"></i>{{ currentDate }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content Area -->
+            <div class="flex-1 overflow-auto p-6">
+                <!-- Dashboard Module -->
+                <div v-if="currentModule === 'dashboard'" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="stat-card p-6 rounded-xl">
+                            <div class="text-sm opacity-80">Total Quotations</div>
+                            <div class="text-3xl font-bold mt-2">{{ quotations.length }}</div>
+                        </div>
+                        <div class="stat-card p-6 rounded-xl" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <div class="text-sm opacity-80">Pending</div>
+                            <div class="text-3xl font-bold mt-2">{{ quotations.filter(q => q.status === 'draft').length }}</div>
+                        </div>
+                        <div class="stat-card p-6 rounded-xl" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                            <div class="text-sm opacity-80">Sent</div>
+                            <div class="text-3xl font-bold mt-2">{{ quotations.filter(q => q.status === 'sent').length }}</div>
+                        </div>
+                        <div class="stat-card p-6 rounded-xl" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                            <div class="text-sm opacity-80">Stock Value</div>
+                            <div class="text-3xl font-bold mt-2">RM {{ formatNumber(totalStockValue) }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Quotations</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-gray-600 text-sm border-b">
+                                        <th class="pb-3 font-medium">Quote No</th>
+                                        <th class="pb-3 font-medium">Client</th>
+                                        <th class="pb-3 font-medium">Project</th>
+                                        <th class="pb-3 font-medium">Amount</th>
+                                        <th class="pb-3 font-medium">Status</th>
+                                        <th class="pb-3 font-medium">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="quote in recentQuotations" :key="quote.id"
+                                        class="table-row border-b last:border-0 cursor-pointer"
+                                        @click="viewQuotation(quote)">
+                                        <td class="py-3 text-blue-600 font-medium">{{ quote.quoteNo }}</td>
+                                        <td class="py-3">{{ quote.clientName }}</td>
+                                        <td class="py-3">{{ quote.projectName || '—' }}</td>
+                                        <td class="py-3">RM {{ formatNumber(quote.totalAmount) }}</td>
+                                        <td class="py-3">
+                                            <span :class="statusClass(quote.status)" class="px-2 py-1 rounded-full text-xs font-medium">
+                                                {{ quote.status.toUpperCase() }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 text-gray-600">{{ formatDate(quote.issueDate) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quotations Module -->
+                <div v-if="currentModule === 'quotations'" class="space-y-6">
+                    <div class="card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">All Quotations</h3>
+                            <div class="flex space-x-3">
+                                <input v-model="searchQuery" type="text" placeholder="Search quotes..."
+                                       class="input-field text-sm">
+                                <select v-model="statusFilter" class="input-field text-sm">
+                                    <option value="">All Status</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="sent">Sent</option>
+                                    <option value="accepted">Accepted</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-gray-600 text-sm border-b">
+                                        <th class="pb-3 font-medium">Quote No</th>
+                                        <th class="pb-3 font-medium">Client</th>
+                                        <th class="pb-3 font-medium">Project</th>
+                                        <th class="pb-3 font-medium">Amount</th>
+                                        <th class="pb-3 font-medium">Valid Until</th>
+                                        <th class="pb-3 font-medium">Status</th>
+                                        <th class="pb-3 font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="quote in filteredQuotations" :key="quote.id"
+                                        class="table-row border-b last:border-0">
+                                        <td class="py-3 text-blue-600 font-medium cursor-pointer"
+                                            @click="viewQuotation(quote)">{{ quote.quoteNo }}</td>
+                                        <td class="py-3">{{ quote.clientName }}</td>
+                                        <td class="py-3">{{ quote.projectName || '—' }}</td>
+                                        <td class="py-3">RM {{ formatNumber(quote.totalAmount) }}</td>
+                                        <td class="py-3 text-gray-600">{{ formatDate(quote.validUntil) }}</td>
+                                        <td class="py-3">
+                                            <span :class="statusClass(quote.status)"
+                                                  class="px-2 py-1 rounded-full text-xs font-medium">
+                                                {{ quote.status.toUpperCase() }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="flex space-x-2">
+                                                <button @click="viewQuotation(quote)"
+                                                        class="text-blue-600 hover:text-blue-800 text-sm">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button v-if="quote.status === 'draft'"
+                                                        @click="editQuotation(quote)"
+                                                        class="text-green-600 hover:text-green-800 text-sm">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button @click="downloadPDF(quote)"
+                                                        class="text-purple-600 hover:text-purple-800 text-sm">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Clients Module -->
+                <div v-if="currentModule === 'clients'" class="space-y-6">
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Clients</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-gray-600 text-sm border-b">
+                                        <th class="pb-3 font-medium">Client Name</th>
+                                        <th class="pb-3 font-medium">Contact Person</th>
+                                        <th class="pb-3 font-medium">Phone</th>
+                                        <th class="pb-3 font-medium">Email</th>
+                                        <th class="pb-3 font-medium">Quotes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="client in clients" :key="client.id" class="table-row border-b last:border-0">
+                                        <td class="py-3 font-medium">{{ client.name }}</td>
+                                        <td class="py-3">{{ client.contactPerson || '—' }}</td>
+                                        <td class="py-3">{{ client.phone }}</td>
+                                        <td class="py-3">{{ client.email || '—' }}</td>
+                                        <td class="py-3 text-blue-600 cursor-pointer"
+                                            @click="filterByClient(client.name)">
+                                            {{ client.quoteCount }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Inventory Module -->
+                <div v-if="currentModule === 'inventory'" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="stat-card p-6 rounded-xl" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <div class="text-sm opacity-80">Total Coils</div>
+                            <div class="text-3xl font-bold mt-2">{{ coils.length }}</div>
+                        </div>
+                        <div class="stat-card p-6 rounded-xl" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                            <div class="text-sm opacity-80">In Stock (tons)</div>
+                            <div class="text-3xl font-bold mt-2">{{ totalStockTons.toFixed(2) }}</div>
+                        </div>
+                        <div class="stat-card p-6 rounded-xl" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                            <div class="text-sm opacity-80">In Production</div>
+                            <div class="text-3xl font-bold mt-2">{{ coils.filter(c => c.status === 'in_use').length }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Coil Inventory</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-gray-600 text-sm border-b">
+                                        <th class="pb-3 font-medium">Coil Code</th>
+                                        <th class="pb-3 font-medium">Material</th>
+                                        <th class="pb-3 font-medium">Thickness</th>
+                                        <th class="pb-3 font-medium">Width</th>
+                                        <th class="pb-3 font-medium">Weight (kg)</th>
+                                        <th class="pb-3 font-medium">Length (m)</th>
+                                        <th class="pb-3 font-medium">Status</th>
+                                        <th class="pb-3 font-medium">PO Number</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="coil in coils" :key="coil.id" class="table-row border-b last:border-0">
+                                        <td class="py-3 font-mono text-sm">{{ coil.coilCode }}</td>
+                                        <td class="py-3 capitalize">{{ coil.material }}</td>
+                                        <td class="py-3">{{ coil.thickness }} mm</td>
+                                        <td class="py-3">{{ coil.width }} mm</td>
+                                        <td class="py-3">{{ formatNumber(coil.weight) }}</td>
+                                        <td class="py-3">{{ formatNumber(coil.length) }}</td>
+                                        <td class="py-3">
+                                            <span :class="coilStatusClass(coil.status)"
+                                                  class="px-2 py-1 rounded-full text-xs font-medium">
+                                                {{ coil.status.replace('_', ' ').toUpperCase() }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 text-gray-600">{{ coil.poNumber }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Purchase Orders Module -->
+                <div v-if="currentModule === 'purchase-orders'" class="space-y-6">
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Purchase Orders</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-gray-600 text-sm border-b">
+                                        <th class="pb-3 font-medium">PO Number</th>
+                                        <th class="pb-3 font-medium">Supplier</th>
+                                        <th class="pb-3 font-medium">Coils</th>
+                                        <th class="pb-3 font-medium">Total Weight</th>
+                                        <th class="pb-3 font-medium">Price</th>
+                                        <th class="pb-3 font-medium">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="po in purchaseOrders" :key="po.id" class="table-row border-b last:border-0">
+                                        <td class="py-3 font-medium">{{ po.poNumber }}</td>
+                                        <td class="py-3">{{ po.supplier }}</td>
+                                        <td class="py-3">{{ po.coilCount }}</td>
+                                        <td class="py-3">{{ formatNumber(po.totalWeight) }} kg</td>
+                                        <td class="py-3">RM {{ formatNumber(po.price) }}/{{ po.priceUnit }}</td>
+                                        <td class="py-3">
+                                            <span :class="poStatusClass(po.status)"
+                                                  class="px-2 py-1 rounded-full text-xs font-medium">
+                                                {{ po.status.replace('_', ' ').toUpperCase() }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Settings Module -->
+                <div v-if="currentModule === 'settings' && currentUser.role === 'superadmin'" class="space-y-6">
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-6">System Settings</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Currency Code</label>
+                                <input v-model="settings.currencyCode" type="text" class="input-field w-full">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Currency Symbol</label>
+                                <input v-model="settings.currencySymbol" type="text" class="input-field w-full">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Tax Name</label>
+                                <input v-model="settings.taxName" type="text" class="input-field w-full">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Tax Rate (%)</label>
+                                <input v-model.number="settings.taxRate" type="number" step="0.1" class="input-field w-full">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Min $/Ton Value</label>
+                                <input v-model.number="settings.minTonValue" type="number" class="input-field w-full">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Min $/Ton Mode</label>
+                                <select v-model="settings.minTonMode" class="input-field w-full">
+                                    <option value="warn">Warn</option>
+                                    <option value="block">Block</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Quote Validity (Days)</label>
+                                <input v-model.number="settings.quoteValidityDays" type="number" class="input-field w-full">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 pt-6 border-t">
+                            <h4 class="font-medium text-gray-800 mb-4">Material Densities</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div v-for="(density, material) in settings.densities" :key="material">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2 capitalize">{{ material }}</label>
+                                    <input v-model.number="settings.densities[material]" type="number" step="0.01"
+                                           class="input-field w-full">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 flex justify-end">
+                            <button @click="saveSettings" class="btn-primary text-white px-6 py-2 rounded-lg font-medium">
+                                Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Create/Edit Quotation Modal -->
+        <transition name="fade">
+            <div v-if="showCreateModal" class="fixed inset-0 modal-overlay flex items-center justify-center z-50 no-print">
+                <div class="bg-white rounded-xl w-full max-w-6xl max-h-[90vh] overflow-auto mx-4">
+                    <div class="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            {{ editingQuote ? 'Edit Quotation' : 'Create New Quotation' }}
+                        </h3>
+                        <button @click="closeModal" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- Step 1: Client & Project Info -->
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">
+                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm mr-2">1</span>
+                                Client & Project Information
+                            </h4>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Client *</label>
+                                    <select v-model="quoteForm.clientId" class="input-field w-full">
+                                        <option value="">Select Client</option>
+                                        <option v-for="client in clients" :key="client.id" :value="client.id">
+                                            {{ client.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
+                                    <input v-model="quoteForm.projectName" type="text" class="input-field w-full"
+                                           placeholder="e.g., Warehouse Roof – Jurong">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">End Client (Untuk Tetuan)</label>
+                                    <input v-model="quoteForm.endClient" type="text" class="input-field w-full">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Attention To</label>
+                                    <input v-model="quoteForm.attention" type="text" class="input-field w-full">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 2: Product Lines -->
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">
+                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm mr-2">2</span>
+                                Products (Roofing & Wall Cladding)
+                            </h4>
+                            
+                            <div class="space-y-4">
+                                <div v-for="(line, index) in quoteForm.productLines" :key="index"
+                                     class="border rounded-lg p-4 bg-gray-50">
+                                    <div class="flex justify-between items-start mb-3">
+                                        <h5 class="font-medium text-gray-700">Line {{ index + 1 }}</h5>
+                                        <button v-if="quoteForm.productLines.length > 1"
+                                                @click="removeProductLine(index)"
+                                                class="text-red-600 hover:text-red-800 text-sm">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Profile *</label>
+                                            <select v-model="line.profile" class="input-field w-full text-sm">
+                                                <option value="">Select Profile</option>
+                                                <option v-for="prod in products" :key="prod.id" :value="prod.name">
+                                                    {{ prod.name }}
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Status *</label>
+                                            <select v-model="line.status" class="input-field w-full text-sm">
+                                                <option value="firm">Firm</option>
+                                                <option value="optional">Optional</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Category *</label>
+                                            <select v-model="line.category" class="input-field w-full text-sm">
+                                                <option value="roofing">Roofing/Jackroof</option>
+                                                <option value="wall">Wall Cladding</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Qty (m²) *</label>
+                                            <input v-model.number="line.quantity" type="number" step="0.01"
+                                                   class="input-field w-full text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Coating</label>
+                                            <select v-model="line.coating" class="input-field w-full text-sm">
+                                                <option value="">Select Coating</option>
+                                                <option>Zincalume AZ150</option>
+                                                <option>Clean Colorbond W30</option>
+                                                <option>PrimaMaju</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Thickness (mm) *</label>
+                                            <select v-model="line.thickness" class="input-field w-full text-sm">
+                                                <option value="">Select Thickness</option>
+                                                <option v-for="t in thicknessOptions" :key="t" :value="t">{{ t }}</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">BMT (mm)</label>
+                                            <input v-model="line.bmt" type="text" class="input-field w-full text-sm"
+                                                   placeholder="Auto-calculated">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">TCT (mm)</label>
+                                            <input v-model="line.tct" type="text" class="input-field w-full text-sm"
+                                                   placeholder="Auto-calculated">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Tolerance (mm)</label>
+                                            <input v-model="line.tolerance" type="text" class="input-field w-full text-sm"
+                                                   value="±0.15">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Unit Price (RM/m²) *</label>
+                                            <input v-model.number="line.unitPrice" type="number" step="0.01"
+                                                   class="input-field w-full text-sm"
+                                                   @blur="checkMinTonGuardrail(index)">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Min $/ton warning -->
+                                    <div v-if="line.minTonWarning"
+                                         :class="settings.minTonMode === 'block' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'"
+                                         class="mt-3 p-3 rounded border">
+                                        <div class="flex items-start">
+                                            <i :class="settings.minTonMode === 'block' ? 'fas fa-exclamation-circle text-red-600' : 'fas fa-exclamation-triangle text-yellow-600'"
+                                               class="mr-2 mt-0.5"></i>
+                                            <div class="flex-1">
+                                                <p class="text-sm font-medium"
+                                                   :class="settings.minTonMode === 'block' ? 'text-red-800' : 'text-yellow-800'">
+                                                    Effective $/ton: RM {{ formatNumber(line.effectiveTonPrice) }}
+                                                    (Below minimum of RM {{ formatNumber(settings.minTonValue) }})
+                                                </p>
+                                                <div v-if="settings.minTonMode === 'warn'" class="mt-2">
+                                                    <label class="block text-xs text-red-700 mb-1">Override Reason *</label>
+                                                    <input v-model="line.overrideReason" type="text"
+                                                           class="input-field w-full text-xs"
+                                                           placeholder="Explain why this price is acceptable">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3 flex justify-end">
+                                        <p class="text-sm text-gray-600">
+                                            Line Total: <span class="font-semibold">RM {{ formatNumber(line.quantity * line.unitPrice) }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <button @click="addProductLine"
+                                        class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    <i class="fas fa-plus mr-1"></i>Add Product Line
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 3: Accessories -->
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">
+                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm mr-2">3</span>
+                                Accessories (Flashing, Capping, Clips)
+                            </h4>
+                            
+                            <div class="space-y-4">
+                                <div v-for="(acc, index) in quoteForm.accessoryLines" :key="index"
+                                     class="border rounded-lg p-4 bg-gray-50">
+                                    <div class="flex justify-between items-start mb-3">
+                                        <h5 class="font-medium text-gray-700">Accessory {{ index + 1 }}</h5>
+                                        <button v-if="quoteForm.accessoryLines.length > 1"
+                                                @click="removeAccessoryLine(index)"
+                                                class="text-red-600 hover:text-red-800 text-sm">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Type *</label>
+                                            <select v-model="acc.type" class="input-field w-full text-sm">
+                                                <option value="">Select Type</option>
+                                                <option>Flashing</option>
+                                                <option>Ridge Capping</option>
+                                                <option>Clip</option>
+                                                <option>Zip</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Size (mm)</label>
+                                            <select v-model="acc.size" class="input-field w-full text-sm"
+                                                    :disabled="!['Flashing', 'Ridge Capping'].includes(acc.type)">
+                                                <option value="">N/A</option>
+                                                <option v-if="['Flashing', 'Ridge Capping'].includes(acc.type)" value="300">300</option>
+                                                <option v-if="['Flashing', 'Ridge Capping'].includes(acc.type)" value="400">400</option>
+                                                <option v-if="['Flashing', 'Ridge Capping'].includes(acc.type)" value="450">450</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Quantity *</label>
+                                            <input v-model.number="acc.quantity" type="number" step="0.01"
+                                                   class="input-field w-full text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Unit</label>
+                                            <select v-model="acc.unit" class="input-field w-full text-sm">
+                                                <option value="m">m (meter run)</option>
+                                                <option value="pc">pc (piece)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Unit Price (RM) *</label>
+                                            <input v-model.number="acc.unitPrice" type="number" step="0.01"
+                                                   class="input-field w-full text-sm">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3 flex justify-end">
+                                        <p class="text-sm text-gray-600">
+                                            Line Total: <span class="font-semibold">RM {{ formatNumber(acc.quantity * acc.unitPrice) }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <button @click="addAccessoryLine"
+                                        class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    <i class="fas fa-plus mr-1"></i>Add Accessory Line
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Step 4: Roll On Site & Transport -->
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">
+                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm mr-2">4</span>
+                                Additional Charges
+                            </h4>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="border rounded-lg p-4">
+                                    <h5 class="font-medium text-gray-700 mb-3">Roll On Site Charges</h5>
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">ROS Rate (RM/trip)</label>
+                                            <input v-model.number="quoteForm.rosRate" type="number" step="0.01"
+                                                   class="input-field w-full text-sm">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-600 mb-1">Max Days</label>
+                                            <input v-model.number="quoteForm.rosMaxDays" type="number"
+                                                   class="input-field w-full text-sm" value="3">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="border rounded-lg p-4">
+                                    <h5 class="font-medium text-gray-700 mb-3">Transport Charges</h5>
+                                    <div class="space-y-2">
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <input v-model="quoteForm.transportDest" type="text"
+                                                   placeholder="Destination"
+                                                   class="input-field w-full text-sm col-span-2">
+                                            <input v-model.number="quoteForm.tr30" type="number" step="0.01"
+                                                   placeholder="Up to 30 Ft"
+                                                   class="input-field w-full text-sm">
+                                            <input v-model.number="quoteForm.tr40" type="number" step="0.01"
+                                                   placeholder="Up to 40 Ft"
+                                                   class="input-field w-full text-sm">
+                                            <input v-model.number="quoteForm.tr50" type="number" step="0.01"
+                                                   placeholder="Up to 50 Ft"
+                                                   class="input-field w-full text-sm">
+                                            <input v-model.number="quoteForm.tr60" type="number" step="0.01"
+                                                   placeholder="Up to 60 Ft"
+                                                   class="input-field w-full text-sm">
+                                            <input v-model.number="quoteForm.tr70" type="number" step="0.01"
+                                                   placeholder="Up to 70 Ft"
+                                                   class="input-field w-full text-sm">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Summary -->
+                        <div class="border-t pt-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-lg font-semibold text-gray-800">Summary</h4>
+                                <div class="text-right">
+                                    <p class="text-sm text-gray-600">Subtotal: RM {{ formatNumber(quoteSubtotal) }}</p>
+                                    <p class="text-sm text-gray-600">Tax ({{ settings.taxName }} {{ settings.taxRate }}%): RM {{ formatNumber(quoteTax) }}</p>
+                                    <p class="text-xl font-bold text-gray-800">Total: RM {{ formatNumber(quoteTotal) }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3">
+                                <button @click="closeModal"
+                                        class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                                    Cancel
+                                </button>
+                                <button @click="saveQuotation"
+                                        :disabled="!canSaveQuote"
+                                        :class="canSaveQuote ? 'btn-primary' : 'bg-gray-300 cursor-not-allowed'"
+                                        class="text-white px-6 py-2 rounded-lg font-medium">
+                                    {{ editingQuote ? 'Update Quotation' : 'Create Quotation' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+        
+        <!-- View Quotation Modal (Full Screen) -->
+        <transition name="fade">
+            <div v-if="showViewModal" class="fixed inset-0 modal-overlay flex items-center justify-center z-50 no-print">
+                <div class="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-auto mx-4">
+                    <div class="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+                        <h3 class="text-xl font-bold text-gray-800">Quotation Details</h3>
+                        <div class="flex items-center space-x-3">
+                            <button @click="downloadPDF(viewingQuote)"
+                                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm">
+                                <i class="fas fa-file-pdf mr-2"></i>Download PDF
+                            </button>
+                            <button @click="shareWhatsApp(viewingQuote)"
+                                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">
+                                <i class="fab fa-whatsapp mr-2"></i>WhatsApp
+                            </button>
+                            <button @click="showViewModal = false"
+                                    class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-8">
+                        <!-- Render the quotation template -->
+                        <div id="quotation-preview" class="quotation-template">
+                            <!-- BLOCK 1 — LETTERHEAD -->
+                            <div class="text-center mb-6">
+                                <h1 class="text-2xl font-bold">{{ settings.companyName }}</h1>
+                                <p class="text-sm">{{ settings.companyRegNo }}</p>
+                                <p class="text-sm">{{ settings.companyAddress }}</p>
+                                <p class="text-sm">Tel: {{ settings.companyTel }} · Fax: {{ settings.companyFax }}</p>
+                            </div>
+                            
+                            <div class="text-right mb-6">
+                                <h2 class="text-3xl font-bold">QUOTATION</h2>
+                            </div>
+                            
+                            <table class="quotation-table mb-6">
+                                <tr>
+                                    <th class="w-1/4">Quotation No.</th>
+                                    <td>{{ viewingQuote?.quoteNo }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Date</th>
+                                    <td>{{ formatDateLong(viewingQuote?.issueDate) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>To</th>
+                                    <td>{{ getClientName(viewingQuote?.clientId) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Attn</th>
+                                    <td>{{ viewingQuote?.attention || '—' }}</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="mb-6">
+                                <p><strong>Project:</strong> {{ viewingQuote?.projectName || '—' }}</p>
+                                <p><strong>Untuk Tetuan:</strong> {{ viewingQuote?.endClient || '—' }}</p>
+                            </div>
+                            
+                            <p class="mb-4">Thank you for your enquiry, we are pleased to quote our best price as the following: -</p>
+                            
+                            <h3 class="font-bold mb-3">To Supply & Roll On Site :-</h3>
+                            
+                            <!-- Roofing & Jackroof Section -->
+                            <h4 class="font-semibold mb-2">Roofing & Jackroof</h4>
+                            <table class="quotation-table mb-4">
+                                <thead>
+                                    <tr>
+                                        <th class="w-8">#</th>
+                                        <th>Status</th>
+                                        <th>Profile / Item</th>
+                                        <th>Quantity</th>
+                                        <th>Coating</th>
+                                        <th>Thickness</th>
+                                        <th>Unit Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(line, idx) in getRoofingLines(viewingQuote)" :key="idx">
+                                        <td>{{ idx + 1 }}</td>
+                                        <td>{{ line.status }}</td>
+                                        <td>{{ line.profile }} – {{ line.coating }} {{ line.thickness }}mm</td>
+                                        <td>± {{ formatNumber(line.quantity) }} m²</td>
+                                        <td>{{ line.coating }}</td>
+                                        <td>{{ line.bmt }} mm bmt ({{ line.tct }} mm tct) ± {{ line.tolerance }} mm</td>
+                                        <td>RM {{ formatNumber(line.unitPrice) }}/m²</td>
+                                    </tr>
+                                    <tr v-if="hasOptionalRoofing(viewingQuote)">
+                                        <td colspan="7"><em>Optional :-</em></td>
+                                    </tr>
+                                    <tr v-for="(line, idx) in getOptionalRoofingLines(viewingQuote)" :key="'opt-'+idx">
+                                        <td>{{ getRoofingLines(viewingQuote).length + idx + 1 }}</td>
+                                        <td>{{ line.status }}</td>
+                                        <td>{{ line.profile }} – {{ line.coating }} {{ line.thickness }}mm</td>
+                                        <td>± {{ formatNumber(line.quantity) }} m²</td>
+                                        <td>{{ line.coating }}</td>
+                                        <td>{{ line.bmt }} mm bmt ({{ line.tct }} mm tct) ± {{ line.tolerance }} mm</td>
+                                        <td>RM {{ formatNumber(line.unitPrice) }}/m²</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <!-- Wall Cladding Section -->
+                            <h4 class="font-semibold mb-2">Wall Cladding</h4>
+                            <table class="quotation-table mb-4">
+                                <thead>
+                                    <tr>
+                                        <th class="w-8">#</th>
+                                        <th>Status</th>
+                                        <th>Profile / Item</th>
+                                        <th>Quantity</th>
+                                        <th>Coating</th>
+                                        <th>Thickness</th>
+                                        <th>Unit Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(line, idx) in getWallLines(viewingQuote)" :key="'wall-'+idx">
+                                        <td>{{ getRoofingLines(viewingQuote).length + (hasOptionalRoofing(viewingQuote) ? getOptionalRoofingLines(viewingQuote).length : 0) + idx + 1 }}</td>
+                                        <td>{{ line.status }}</td>
+                                        <td>{{ line.profile }} – {{ line.coating }} {{ line.thickness }}mm</td>
+                                        <td>± {{ formatNumber(line.quantity) }} m²</td>
+                                        <td>{{ line.coating }}</td>
+                                        <td>{{ line.bmt }} mm bmt ({{ line.tct }} mm tct) ± {{ line.tolerance }} mm</td>
+                                        <td>RM {{ formatNumber(line.unitPrice) }}/m²</td>
+                                    </tr>
+                                    <tr v-if="hasOptionalWall(viewingQuote)">
+                                        <td colspan="7"><em>Optional :-</em></td>
+                                    </tr>
+                                    <tr v-for="(line, idx) in getOptionalWallLines(viewingQuote)" :key="'opt-wall-'+idx">
+                                        <td>{{ getTotalLinesBeforeOptionalWall(viewingQuote) + idx + 1 }}</td>
+                                        <td>{{ line.status }}</td>
+                                        <td>{{ line.profile }} – {{ line.coating }} {{ line.thickness }}mm</td>
+                                        <td>± {{ formatNumber(line.quantity) }} m²</td>
+                                        <td>{{ line.coating }}</td>
+                                        <td>{{ line.bmt }} mm bmt ({{ line.tct }} mm tct) ± {{ line.tolerance }} mm</td>
+                                        <td>RM {{ formatNumber(line.unitPrice) }}/m²</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <!-- Accessories -->
+                            <h4 class="font-semibold mb-2">Accessories</h4>
+                            <table class="quotation-table mb-4">
+                                <thead>
+                                    <tr>
+                                        <th class="w-8">#</th>
+                                        <th>Description</th>
+                                        <th>Quantity</th>
+                                        <th>Unit</th>
+                                        <th>Unit Price</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(acc, idx) in viewingQuote?.accessoryLines" :key="'acc-'+idx">
+                                        <td>{{ getTotalProductLines(viewingQuote) + idx + 1 }}</td>
+                                        <td>{{ acc.type }} {{ acc.size ? acc.size : '' }}</td>
+                                        <td>{{ formatNumber(acc.quantity) }}</td>
+                                        <td>{{ acc.unit }}</td>
+                                        <td>RM {{ formatNumber(acc.unitPrice) }}</td>
+                                        <td>RM {{ formatNumber(acc.quantity * acc.unitPrice) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <!-- Roll On Site Charges -->
+                            <div v-if="viewingQuote?.rosRate" class="mb-4">
+                                <p><strong>{{ getTotalLines(viewingQuote) + 1 }}) Roll On Site Charges:</strong> RM {{ formatNumber(viewingQuote.rosRate) }}/trip (Not More Than {{ viewingQuote.rosMaxDays }} Days)</p>
+                            </div>
+                            
+                            <!-- Transport Charges -->
+                            <div v-if="viewingQuote?.transportDest" class="mb-4">
+                                <p><strong>{{ getTotalLines(viewingQuote) + (viewingQuote?.rosRate ? 2 : 1) }}) Transport Charges to {{ viewingQuote.transportDest }}:</strong></p>
+                                <table class="quotation-table">
+                                    <tr><th>Truck length</th><th>Rate</th></tr>
+                                    <tr v-if="viewingQuote.tr30"><td>Up to 30 Ft</td><td>RM {{ formatNumber(viewingQuote.tr30) }}/trip</td></tr>
+                                    <tr v-if="viewingQuote.tr40"><td>Up to 40 Ft</td><td>RM {{ formatNumber(viewingQuote.tr40) }}/trip</td></tr>
+                                    <tr v-if="viewingQuote.tr50"><td>Up to 50 Ft</td><td>RM {{ formatNumber(viewingQuote.tr50) }}/trip</td></tr>
+                                    <tr v-if="viewingQuote.tr60"><td>Up to 60 Ft</td><td>RM {{ formatNumber(viewingQuote.tr60) }}/trip</td></tr>
+                                    <tr v-if="viewingQuote.tr70"><td>Up to 70 Ft</td><td>RM {{ formatNumber(viewingQuote.tr70) }}/trip</td></tr>
+                                </table>
+                                <p class="text-sm italic mt-2">· Price subject to change due to market price fluctuation.</p>
+                            </div>
+                            
+                            <!-- Terms & Conditions -->
+                            <div class="mt-6">
+                                <p class="font-bold mb-3">Terms & Conditions :</p>
+                                <ol class="list-lowercase list-inside space-y-1 text-sm">
+                                    <li>(a) Payment/Term: {{ settings.paymentDays }} days from the date of delivery.</li>
+                                    <li>(b) Validity: {{ settings.quoteValidityDays }} days from the date of this quotation.</li>
+                                    <li>(c) Delivery: {{ settings.deliveryWeeks }} weeks ex-factory upon confirmation of order subject to material availability at time of order, if insufficient stock, {{ settings.leadWeeks }} weeks lead-time is needed for material reservation.</li>
+                                    <li>(d) Feed stock availability: Ex-stock subject to prior sales, otherwise feed materials will be drawn from next forthcoming shipment.</li>
+                                    <li>(e) Roofing sheet measurement shall be given by your good self.</li>
+                                    <li>(f) TRANSPORTATION - {{ settings.transportTerms }}.</li>
+                                    <li>(g) Price quoted is subject to change without prior notice; if there any increase in international steel commodity price, import duties, surcharges of any others tax are being imposed by the Malaysia government and subject to the stock available upon receiving the purchase order. We reserve the sight to revise the price on any undelivered quantities stated in the sales contract or purchase order received.</li>
+                                    <li>(h) Goods supplied shall at all time remain the property of {{ settings.companyName }} until fully settlement received.</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="mt-6">
+                                <p>We trust that the above quotation meets your requirement and should you have any queries, please do not hesitate to contact the undersigned.</p>
+                                <p class="mt-3">We are looking forward your purchase order. Thank you very much.</p>
+                            </div>
+                            
+                            <div class="mt-8">
+                                <p>Regards,</p>
+                                <p class="font-bold">{{ settings.companyName }}</p>
+                                <p>Name: {{ viewingQuote?.salesPerson }}</p>
+                            </div>
+                            
+                            <!-- Footer for PDF -->
+                            <div class="mt-12 pt-4 border-t text-center text-sm text-gray-600">
+                                <p>Please Refer To Our Quotation No.: {{ viewingQuote?.quoteNo }}</p>
+                                <p>Page 1 of 1</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+    </div>
+    
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    currentModule: 'dashboard',
+                    currentUser: { name: 'Admin User', role: 'superadmin' },
+                    showCreateModal: false,
+                    showViewModal: false,
+                    viewingQuote: null,
+                    editingQuote: null,
+                    searchQuery: '',
+                    statusFilter: '',
+                    currentDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                    
+                    settings: {
+                        companyName: 'DMI ROLLFORMING SDN BHD',
+                        companyRegNo: '199101012345',
+                        companyAddress: 'Lot 123, Jalan Industri 4/5, Kawasan Perindustrian, 40000 Shah Alam, Selangor',
+                        companyTel: '+603-5555 1234',
+                        companyFax: '+603-5555 1235',
+                        companyMobile: '+6012-345 6789',
+                        currencyCode: 'MYR',
+                        currencySymbol: 'RM',
+                        taxName: 'SST',
+                        taxRate: 8,
+                        minTonValue: 12000,
+                        minTonMode: 'warn',
+                        quoteValidityDays: 7,
+                        paymentDays: 30,
+                        deliveryWeeks: 2,
+                        leadWeeks: 4,
+                        transportTerms: 'Ex-works',
+                        densities: {
+                            steel: 7.85,
+                            aluminium: 2.70
+                        }
+                    },
+                    
+                    clients: [
+                        { id: 1, name: 'ABC Construction Sdn Bhd', contactPerson: 'Mr. Tan', phone: '+6012-345-6789', email: 'tan@abc.com.my', quoteCount: 3 },
+                        { id: 2, name: 'XYZ Industries', contactPerson: 'Ms. Lim', phone: '+6016-789-0123', email: 'lim@xyz.com', quoteCount: 2 },
+                        { id: 3, name: 'BuildTech Malaysia', contactPerson: 'En. Ahmad', phone: '+6019-456-7890', email: 'ahmad@buildtech.my', quoteCount: 1 }
+                    ],
+                    
+                    products: [
+                        { id: 1, name: 'Weathertip 200', category: 'roofing' },
+                        { id: 2, name: 'Kliplok 400', category: 'roofing' },
+                        { id: 3, name: 'IBR 1000', category: 'wall' },
+                        { id: 4, name: 'Corrugated', category: 'both' }
+                    ],
+                    
+                    thicknessOptions: [0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70],
+                    
+                    quotations: [
+                        {
+                            id: 1,
+                            quoteNo: 'Q-00091',
+                            clientId: 1,
+                            clientName: 'ABC Construction Sdn Bhd',
+                            projectName: 'Warehouse Roof – Jurong',
+                            endClient: 'ABC Construction Sdn Bhd',
+                            attention: 'Mr. Tan',
+                            issueDate: '2025-01-15',
+                            validUntil: '2025-01-22',
+                            status: 'sent',
+                            salesPerson: 'John Doe',
+                            productLines: [
+                                { profile: 'Weathertip 200', status: 'firm', category: 'roofing', quantity: 320, coating: 'Zincalume AZ150', thickness: 0.45, bmt: '0.45', tct: '0.42', tolerance: '±0.15', unitPrice: 45.00 },
+                                { profile: 'Kliplok 400', status: 'firm', category: 'roofing', quantity: 150, coating: 'Clean Colorbond W30', thickness: 0.50, bmt: '0.50', tct: '0.47', tolerance: '±0.15', unitPrice: 52.00 }
+                            ],
+                            accessoryLines: [
+                                { type: 'Flashing', size: '300', quantity: 60, unit: 'm', unitPrice: 18.50 },
+                                { type: 'Clip', size: '', quantity: 150, unit: 'pc', unitPrice: 2.50 }
+                            ],
+                            rosRate: 1200,
+                            rosMaxDays: 3,
+                            transportDest: 'Shah Alam',
+                            tr30: 450,
+                            tr40: 550,
+                            tr50: 650,
+                            tr60: 750,
+                            tr70: 850,
+                            subtotal: 23450.00,
+                            tax: 1876.00,
+                            totalAmount: 25326.00
+                        },
+                        {
+                            id: 2,
+                            quoteNo: 'Q-00092',
+                            clientId: 2,
+                            clientName: 'XYZ Industries',
+                            projectName: 'Factory Extension',
+                            endClient: 'XYZ Industries',
+                            attention: 'Ms. Lim',
+                            issueDate: '2025-01-16',
+                            validUntil: '2025-01-23',
+                            status: 'draft',
+                            salesPerson: 'Jane Smith',
+                            productLines: [
+                                { profile: 'IBR 1000', status: 'firm', category: 'wall', quantity: 200, coating: 'PrimaMaju', thickness: 0.60, bmt: '0.60', tct: '0.57', tolerance: '±0.15', unitPrice: 58.00 }
+                            ],
+                            accessoryLines: [],
+                            subtotal: 11600.00,
+                            tax: 928.00,
+                            totalAmount: 12528.00
+                        }
+                    ],
+                    
+                    coils: [
+                        { id: 1, coilCode: 'SC-88121-A', material: 'steel', thickness: 0.45, width: 1200, weight: 5000, length: 1179.5, status: 'arrived', poNumber: 'PO-1023' },
+                        { id: 2, coilCode: 'SC-88121-B', material: 'steel', thickness: 0.45, width: 1200, weight: 4980, length: 1174.8, status: 'arrived', poNumber: 'PO-1023' },
+                        { id: 3, coilCode: 'SC-88122', material: 'steel', thickness: 0.60, width: 1200, weight: 6000, length: 1061.6, status: 'in_use', poNumber: 'PO-1023' },
+                        { id: 4, coilCode: 'AL-5501', material: 'aluminium', thickness: 0.70, width: 1000, weight: 2000, length: 1058.2, status: 'arrived', poNumber: 'PO-1024' }
+                    ],
+                    
+                    purchaseOrders: [
+                        { id: 1, poNumber: 'PO-1023', supplier: 'ABC Steel Traders', coilCount: 3, totalWeight: 15980, price: 2850, priceUnit: 'ton', status: 'received' },
+                        { id: 2, poNumber: 'PO-1024', supplier: 'MetalOne Supplies', coilCount: 1, totalWeight: 2000, price: 6.20, priceUnit: 'm2', status: 'received' }
+                    ],
+                    
+                    quoteForm: {
+                        clientId: '',
+                        projectName: '',
+                        endClient: '',
+                        attention: '',
+                        productLines: [],
+                        accessoryLines: [],
+                        rosRate: null,
+                        rosMaxDays: 3,
+                        transportDest: '',
+                        tr30: null,
+                        tr40: null,
+                        tr50: null,
+                        tr60: null,
+                        tr70: null
+                    }
+                };
+            },
+            
+            computed: {
+                moduleTitle() {
+                    const titles = {
+                        dashboard: 'Dashboard',
+                        quotations: 'Quotations',
+                        clients: 'Clients',
+                        inventory: 'Inventory',
+                        'purchase-orders': 'Purchase Orders',
+                        settings: 'Settings'
+                    };
+                    return titles[this.currentModule];
+                },
+                
+                navItems() {
+                    return [
+                        { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-line' },
+                        { id: 'quotations', label: 'Quotations', icon: 'fa-file-invoice-dollar' },
+                        { id: 'clients', label: 'Clients', icon: 'fa-users' },
+                        { id: 'inventory', label: 'Inventory', icon: 'fa-boxes' },
+                        { id: 'purchase-orders', label: 'Purchase Orders', icon: 'fa-clipboard-list' },
+                        ...(this.currentUser.role === 'superadmin' ? [{ id: 'settings', label: 'Settings', icon: 'fa-cog' }] : [])
+                    ];
+                },
+                
+                canCreateQuotation() {
+                    return ['superadmin', 'sales'].includes(this.currentUser.role);
+                },
+                
+                recentQuotations() {
+                    return [...this.quotations].sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate)).slice(0, 5);
+                },
+                
+                filteredQuotations() {
+                    return this.quotations.filter(q => {
+                        const matchesSearch = q.quoteNo.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                                             q.clientName.toLowerCase().includes(this.searchQuery.toLowerCase());
+                        const matchesStatus = !this.statusFilter || q.status === this.statusFilter;
+                        return matchesSearch && matchesStatus;
+                    });
+                },
+                
+                totalStockValue() {
+                    return this.coils.reduce((sum, coil) => sum + (coil.weight * 2.85), 0);
+                },
+                
+                totalStockTons() {
+                    return this.coils.filter(c => c.status === 'arrived').reduce((sum, coil) => sum + coil.weight, 0) / 1000;
+                },
+                
+                quoteSubtotal() {
+                    let subtotal = 0;
+                    this.quoteForm.productLines.forEach(line => {
+                        subtotal += line.quantity * line.unitPrice;
+                    });
+                    this.quoteForm.accessoryLines.forEach(acc => {
+                        subtotal += acc.quantity * acc.unitPrice;
+                    });
+                    if (this.quoteForm.rosRate) subtotal += this.quoteForm.rosRate;
+                    return subtotal;
+                },
+                
+                quoteTax() {
+                    return Math.round(this.quoteSubtotal * this.settings.taxRate / 100 * 100) / 100;
+                },
+                
+                quoteTotal() {
+                    return this.quoteSubtotal + this.quoteTax;
+                },
+                
+                canSaveQuote() {
+                    if (!this.quoteForm.clientId) return false;
+                    if (this.quoteForm.productLines.length === 0) return false;
+                    
+                    // Check if all required fields are filled
+                    for (const line of this.quoteForm.productLines) {
+                        if (!line.profile || !line.status || !line.category || !line.quantity || !line.thickness || !line.unitPrice) {
+                            return false;
+                        }
+                        // Check min ton guardrail
+                        if (line.minTonWarning && this.settings.minTonMode === 'block') {
+                            return false;
+                        }
+                        if (line.minTonWarning && this.settings.minTonMode === 'warn' && !line.overrideReason) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                }
+            },
+            
+            methods: {
+                switchRole() {
+                    const roles = ['superadmin', 'sales', 'warehouse'];
+                    const currentIndex = roles.indexOf(this.currentUser.role);
+                    const nextIndex = (currentIndex + 1) % roles.length;
+                    this.currentUser.role = roles[nextIndex];
+                    this.currentUser.name = this.currentUser.role === 'superadmin' ? 'Admin User' :
+                                          this.currentUser.role === 'sales' ? 'Sales Rep' : 'Warehouse Staff';
+                },
+                
+                statusClass(status) {
+                    const classes = {
+                        draft: 'bg-gray-100 text-gray-800',
+                        sent: 'bg-blue-100 text-blue-800',
+                        accepted: 'bg-green-100 text-green-800',
+                        rejected: 'bg-red-100 text-red-800'
+                    };
+                    return classes[status] || 'bg-gray-100 text-gray-800';
+                },
+                
+                coilStatusClass(status) {
+                    const classes = {
+                        in_transit: 'bg-yellow-100 text-yellow-800',
+                        arrived: 'bg-green-100 text-green-800',
+                        in_use: 'bg-blue-100 text-blue-800',
+                        finished: 'bg-gray-100 text-gray-800'
+                    };
+                    return classes[status] || 'bg-gray-100 text-gray-800';
+                },
+                
+                poStatusClass(status) {
+                    const classes = {
+                        pending: 'bg-yellow-100 text-yellow-800',
+                        received: 'bg-green-100 text-green-800'
+                    };
+                    return classes[status] || 'bg-gray-100 text-gray-800';
+                },
+                
+                formatNumber(num) {
+                    return num.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                },
+                
+                formatDate(dateStr) {
+                    if (!dateStr) return '—';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                },
+                
+                formatDateLong(dateStr) {
+                    if (!dateStr) return '—';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+                },
+                
+                getClientName(clientId) {
+                    const client = this.clients.find(c => c.id === clientId);
+                    return client ? client.name : '—';
+                },
+                
+                addProductLine() {
+                    this.quoteForm.productLines.push({
+                        profile: '',
+                        status: 'firm',
+                        category: 'roofing',
+                        quantity: 0,
+                        coating: '',
+                        thickness: '',
+                        bmt: '',
+                        tct: '',
+                        tolerance: '±0.15',
+                        unitPrice: 0,
+                        minTonWarning: false,
+                        effectiveTonPrice: 0,
+                        overrideReason: ''
+                    });
+                },
+                
+                removeProductLine(index) {
+                    this.quoteForm.productLines.splice(index, 1);
+                },
+                
+                addAccessoryLine() {
+                    this.quoteForm.accessoryLines.push({
+                        type: '',
+                        size: '',
+                        quantity: 0,
+                        unit: 'm',
+                        unitPrice: 0
+                    });
+                },
+                
+                removeAccessoryLine(index) {
+                    this.quoteForm.accessoryLines.splice(index, 1);
+                },
+                
+                checkMinTonGuardrail(index) {
+                    const line = this.quoteForm.productLines[index];
+                    const density = this.settings.densities.steel; // Default to steel
+                    const thicknessMm = parseFloat(line.thickness);
+                    
+                    if (!thicknessMm || !line.unitPrice) {
+                        line.minTonWarning = false;
+                        return;
+                    }
+                    
+                    // kg/m² = thickness_mm × density
+                    const kgPerM2 = thicknessMm * density;
+                    // eff $/ton = (price/m² ÷ kg/m²) × 1000
+                    const effectiveTonPrice = (line.unitPrice / kgPerM2) * 1000;
+                    
+                    line.effectiveTonPrice = effectiveTonPrice;
+                    line.minTonWarning = effectiveTonPrice < this.settings.minTonValue;
+                    
+                    // Auto-calculate BMT and TCT
+                    line.bmt = thicknessMm.toFixed(2);
+                    line.tct = (thicknessMm - 0.03).toFixed(2); // Assume 0.03mm coating
+                },
+                
+                closeModal() {
+                    this.showCreateModal = false;
+                    this.editingQuote = null;
+                    this.resetQuoteForm();
+                },
+                
+                resetQuoteForm() {
+                    this.quoteForm = {
+                        clientId: '',
+                        projectName: '',
+                        endClient: '',
+                        attention: '',
+                        productLines: [],
+                        accessoryLines: [],
+                        rosRate: null,
+                        rosMaxDays: 3,
+                        transportDest: '',
+                        tr30: null,
+                        tr40: null,
+                        tr50: null,
+                        tr60: null,
+                        tr70: null
+                    };
+                },
+                
+                saveQuotation() {
+                    if (!this.canSaveQuote) return;
+                    
+                    const now = new Date();
+                    const validUntil = new Date(now);
+                    validUntil.setDate(validUntil.getDate() + this.settings.quoteValidityDays);
+                    
+                    if (this.editingQuote) {
+                        // Update existing
+                        Object.assign(this.editingQuote, {
+                            ...this.quoteForm,
+                            totalAmount: this.quoteTotal,
+                            subtotal: this.quoteSubtotal,
+                            tax: this.quoteTax,
+                            issueDate: this.editingQuote.issueDate,
+                            validUntil: validUntil.toISOString().split('T')[0]
+                        });
+                    } else {
+                        // Create new
+                        const quoteNo = 'Q-' + String(this.quotations.length + 1).padStart(5, '0');
+                        const client = this.clients.find(c => c.id === this.quoteForm.clientId);
+                        
+                        const newQuote = {
+                            id: this.quotations.length + 1,
+                            quoteNo: quoteNo,
+                            ...this.quoteForm,
+                            clientName: client.name,
+                            issueDate: now.toISOString().split('T')[0],
+                            validUntil: validUntil.toISOString().split('T')[0],
+                            status: 'draft',
+                            salesPerson: this.currentUser.name,
+                            totalAmount: this.quoteTotal,
+                            subtotal: this.quoteSubtotal,
+                            tax: this.quoteTax
+                        };
+                        
+                        this.quotations.push(newQuote);
+                    }
+                    
+                    this.closeModal();
+                },
+                
+                editQuotation(quote) {
+                    this.editingQuote = quote;
+                    this.quoteForm = JSON.parse(JSON.stringify({
+                        clientId: quote.clientId,
+                        projectName: quote.projectName,
+                        endClient: quote.endClient,
+                        attention: quote.attention,
+                        productLines: quote.productLines,
+                        accessoryLines: quote.accessoryLines,
+                        rosRate: quote.rosRate,
+                        rosMaxDays: quote.rosMaxDays,
+                        transportDest: quote.transportDest,
+                        tr30: quote.tr30,
+                        tr40: quote.tr40,
+                        tr50: quote.tr50,
+                        tr60: quote.tr60,
+                        tr70: quote.tr70
+                    }));
+                    this.showCreateModal = true;
+                },
+                
+                viewQuotation(quote) {
+                    this.viewingQuote = quote;
+                    this.showViewModal = true;
+                },
+                
+                downloadPDF(quote) {
+                    const element = document.getElementById('quotation-preview');
+                    const opt = {
+                        margin: 10,
+                        filename: `${quote.quoteNo}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2 },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    
+                    html2pdf().set(opt).from(element).save();
+                },
+                
+                shareWhatsApp(quote) {
+                    const client = this.clients.find(c => c.id === quote.clientId);
+                    const message = `Hi ${client.contactPerson}, please find quotation ${quote.quoteNo} for ${quote.projectName}. Total: RM ${this.formatNumber(quote.totalAmount)}. Valid until ${this.formatDate(quote.validUntil)}.`;
+                    const encodedMessage = encodeURIComponent(message);
+                    const phone = client.phone.replace(/[^0-9]/g, '');
+                    window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+                },
+                
+                filterByClient(clientName) {
+                    this.currentModule = 'quotations';
+                    this.searchQuery = clientName;
+                },
+                
+                saveSettings() {
+                    alert('Settings saved successfully!');
+                },
+                
+                // Helper methods for quotation template
+                getRoofingLines(quote) {
+                    if (!quote) return [];
+                    return quote.productLines.filter(l => l.category === 'roofing' && l.status === 'firm');
+                },
+                
+                getOptionalRoofingLines(quote) {
+                    if (!quote) return [];
+                    return quote.productLines.filter(l => l.category === 'roofing' && l.status === 'optional');
+                },
+                
+                hasOptionalRoofing(quote) {
+                    return this.getOptionalRoofingLines(quote).length > 0;
+                },
+                
+                getWallLines(quote) {
+                    if (!quote) return [];
+                    return quote.productLines.filter(l => l.category === 'wall' && l.status === 'firm');
+                },
+                
+                getOptionalWallLines(quote) {
+                    if (!quote) return [];
+                    return quote.productLines.filter(l => l.category === 'wall' && l.status === 'optional');
+                },
+                
+                hasOptionalWall(quote) {
+                    return this.getOptionalWallLines(quote).length > 0;
+                },
+                
+                getTotalLinesBeforeOptionalWall(quote) {
+                    return this.getRoofingLines(quote).length + this.getOptionalRoofingLines(quote).length + this.getWallLines(quote).length;
+                },
+                
+                getTotalProductLines(quote) {
+                    if (!quote) return 0;
+                    return quote.productLines.length;
+                },
+                
+                getTotalLines(quote) {
+                    if (!quote) return 0;
+                    return quote.productLines.length + quote.accessoryLines.length;
+                }
+            },
+            
+            mounted() {
+                // Initialize with one product line
+                this.addProductLine();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
