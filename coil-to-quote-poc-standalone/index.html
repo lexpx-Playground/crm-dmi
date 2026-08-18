@@ -1,0 +1,2147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coil-to-Quote CRM - POC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-light: #f8fafc;
+            --bg-white: #ffffff;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        /* Login Screen */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+
+        .login-header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .role-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .role-btn {
+            padding: 16px 12px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .role-btn:hover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .role-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .role-btn .icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .role-btn .label {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .login-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .login-btn:disabled {
+            background: var(--secondary);
+            cursor: not-allowed;
+        }
+
+        /* Dashboard Layout */
+        .app-container {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .app-container.active {
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 24px 16px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            margin-bottom: 32px;
+            padding: 0 12px;
+        }
+
+        .sidebar-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .user-info {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .user-info .role-badge {
+            display: inline-block;
+            background: var(--primary);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 6px;
+            text-transform: uppercase;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: 4px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .nav-link.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav-link .icon {
+            width: 20px;
+            margin-right: 12px;
+            font-size: 18px;
+        }
+
+        .nav-link .label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 32px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-card .icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card .icon.blue { background: #eff6ff; color: var(--primary); }
+        .stat-card .icon.green { background: #ecfdf5; color: var(--success); }
+        .stat-card .icon.orange { background: #fffbeb; color: var(--warning); }
+        .stat-card .icon.red { background: #fef2f2; color: var(--danger); }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* Tables */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--text-dark);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-light);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-light);
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover {
+            background: var(--bg-light);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.draft { background: #f1f5f9; color: #64748b; }
+        .status-badge.sent { background: #dbeafe; color: #1e40af; }
+        .status-badge.accepted { background: #dcfce7; color: #166534; }
+        .status-badge.rejected { background: #fee2e2; color: #991b1b; }
+        .status-badge.expired { background: #fef3c7; color: #92400e; }
+        .status-badge.in_transit { background: #dbeafe; color: #1e40af; }
+        .status-badge.arrived { background: #dcfce7; color: #166534; }
+        .status-badge.in_use { background: #fef3c7; color: #92400e; }
+        .status-badge.balance { background: #e0e7ff; color: #3730a3; }
+        .status-badge.finished { background: #f1f5f9; color: #475569; }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            padding: 16px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-banner.warning {
+            background: #fffbeb;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .alert-banner.danger {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .alert-banner.success {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .hidden { display: none !important; }
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>🏭 Coil-to-Quote CRM</h1>
+                <p>Proof of Concept - Select your role to continue</p>
+            </div>
+            
+            <div class="role-selector">
+                <div class="role-btn" data-role="superadmin" onclick="selectRole('superadmin')">
+                    <span class="icon">⚙️</span>
+                    <span class="label">Super Admin</span>
+                </div>
+                <div class="role-btn" data-role="sales" onclick="selectRole('sales')">
+                    <span class="icon">💼</span>
+                    <span class="label">Sales</span>
+                </div>
+                <div class="role-btn" data-role="warehouse" onclick="selectRole('warehouse')">
+                    <span class="icon">📦</span>
+                    <span class="label">Warehouse</span>
+                </div>
+            </div>
+
+            <button class="login-btn" id="loginBtn" disabled onclick="login()">
+                Continue as <span id="selectedRoleText">...</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="appContainer" class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>🏭 Coil-to-Quote</h2>
+                <p>POC v1.0</p>
+            </div>
+
+            <div class="user-info">
+                <div id="userName">John Doe</div>
+                <div id="userRole" class="role-badge">Super Admin</div>
+            </div>
+
+            <ul class="nav-menu" id="navMenu">
+                <li class="nav-item">
+                    <a class="nav-link active" onclick="navigateTo('dashboard')">
+                        <span class="icon">📊</span>
+                        <span class="label">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item sales-only warehouse-only">
+                    <a class="nav-link" onclick="navigateTo('quotations')">
+                        <span class="icon">📋</span>
+                        <span class="label">Quotations</span>
+                    </a>
+                </li>
+                <li class="nav-item sales-only">
+                    <a class="nav-link" onclick="navigateTo('clients')">
+                        <span class="icon">👥</span>
+                        <span class="label">Clients</span>
+                    </a>
+                </li>
+                <li class="nav-item warehouse-only">
+                    <a class="nav-link" onclick="navigateTo('inventory')">
+                        <span class="icon">📦</span>
+                        <span class="label">Inventory</span>
+                    </a>
+                </li>
+                <li class="nav-item warehouse-only">
+                    <a class="nav-link" onclick="navigateTo('purchase-orders')">
+                        <span class="icon">🛒</span>
+                        <span class="label">Purchase Orders</span>
+                    </a>
+                </li>
+                <li class="nav-item superadmin-only">
+                    <a class="nav-link" onclick="navigateTo('settings')">
+                        <span class="icon">⚙️</span>
+                        <span class="label">Settings</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" onclick="logout()">
+                        <span class="icon">🚪</span>
+                        <span class="label">Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Page -->
+            <section id="dashboard" class="page-section active">
+                <div class="page-header">
+                    <h1>Dashboard</h1>
+                    <p>Welcome back! Here's what's happening today.</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon blue">📋</div>
+                        <div class="value" id="statQuotes">0</div>
+                        <div class="label">Active Quotations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon green">✅</div>
+                        <div class="value" id="statAccepted">0</div>
+                        <div class="label">Accepted This Month</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon orange">📦</div>
+                        <div class="value" id="statCoils">0</div>
+                        <div class="label">Coils in Stock</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="icon red">⚠️</div>
+                        <div class="value" id="statLowStock">0</div>
+                        <div class="label">Low Stock Alerts</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Recent Quotations</h3>
+                        <button class="btn btn-secondary" onclick="navigateTo('quotations')">View All</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Quote #</th>
+                                <th>Client</th>
+                                <th>Project</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Valid Until</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentQuotesTable">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Quotations Page -->
+            <section id="quotations" class="page-section">
+                <div class="page-header">
+                    <h1>Quotations</h1>
+                    <p>Manage and create customer quotations</p>
+                </div>
+
+                <div style="margin-bottom: 20px; display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="openNewQuoteModal()">+ New Quotation</button>
+                    <input type="text" class="form-input" placeholder="Search quotes..." style="width: 300px;" onkeyup="filterQuotes(this.value)">
+                </div>
+
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Quote #</th>
+                                <th>Client</th>
+                                <th>Project</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quotesTable">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Clients Page -->
+            <section id="clients" class="page-section">
+                <div class="page-header">
+                    <h1>Clients</h1>
+                    <p>Manage customer information</p>
+                </div>
+
+                <div style="margin-bottom: 20px; display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="openNewClientModal()">+ New Client</button>
+                    <input type="text" class="form-input" placeholder="Search clients..." style="width: 300px;" onkeyup="filterClients(this.value)">
+                </div>
+
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>WhatsApp</th>
+                                <th>Email</th>
+                                <th>Quotes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTable">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Inventory Page -->
+            <section id="inventory" class="page-section">
+                <div class="page-header">
+                    <h1>Inventory</h1>
+                    <p>Track coil stock and movements</p>
+                </div>
+
+                <div style="margin-bottom: 20px; display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="simulateScan()">📷 Scan Coil</button>
+                    <button class="btn btn-secondary" onclick="refreshInventory()">🔄 Refresh</button>
+                </div>
+
+                <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="stat-card">
+                        <div class="value" id="totalWeight">0 kg</div>
+                        <div class="label">Total Weight</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="totalLength">0 m</div>
+                        <div class="label">Total Length</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="coilCount">0</div>
+                        <div class="label">Total Coils</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Stock by Material</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Material</th>
+                                <th>Thickness</th>
+                                <th>Coils</th>
+                                <th>Weight (kg)</th>
+                                <th>Length (m)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTable">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Purchase Orders Page -->
+            <section id="purchase-orders" class="page-section">
+                <div class="page-header">
+                    <h1>Purchase Orders</h1>
+                    <p>Manage supplier orders and coil arrivals</p>
+                </div>
+
+                <div style="margin-bottom: 20px; display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="openNewPOModal()">+ New PO</button>
+                    <button class="btn btn-secondary" onclick="importCSV()">📥 Import CSV</button>
+                </div>
+
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PO Number</th>
+                                <th>Supplier</th>
+                                <th>Coils</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poTable">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Settings Page -->
+            <section id="settings" class="page-section">
+                <div class="page-header">
+                    <h1>Settings</h1>
+                    <p>Configure system parameters and business rules</p>
+                </div>
+
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-header">
+                        <h3>🏢 Company & Currency</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Company Name</label>
+                                <input type="text" class="form-input" id="settingCompanyName" value="RollForm Industries Pte Ltd">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Currency Code</label>
+                                <select class="form-select" id="settingCurrencyCode">
+                                    <option value="SGD" selected>SGD - Singapore Dollar</option>
+                                    <option value="USD">USD - US Dollar</option>
+                                    <option value="MYR">MYR - Malaysian Ringgit</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Currency Symbol</label>
+                                <input type="text" class="form-input" id="settingCurrencySymbol" value="$">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Tax Name</label>
+                                <input type="text" class="form-input" id="settingTaxName" value="GST">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Tax Rate (%)</label>
+                                <input type="number" class="form-input" id="settingTaxRate" value="9" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Tax Mode</label>
+                                <select class="form-select" id="settingTaxMode">
+                                    <option value="exclusive" selected>Exclusive (added on top)</option>
+                                    <option value="inclusive">Inclusive (included in price)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-header">
+                        <h3>🛡️ Quotation Guardrails</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Min $/Ton Value</label>
+                                <input type="number" class="form-input" id="settingMinTonValue" value="12000">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Min $/Ton Mode</label>
+                                <select class="form-select" id="settingMinTonMode">
+                                    <option value="warn" selected>Warn (allows override with reason)</option>
+                                    <option value="block">Block (prevents confirmation)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quote Validity (Days)</label>
+                            <input type="number" class="form-input" id="settingQuoteValidity" value="7">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-header">
+                        <h3>📐 Material Densities (kg/m³)</h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Steel Density</label>
+                                <input type="number" class="form-input" id="settingSteelDensity" value="7850">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Aluminium Density</label>
+                                <input type="number" class="form-input" id="settingAluDensity" value="2700">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>💰 Price Book ($/m²)</h3>
+                    </div>
+                    <div class="modal-body">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Material</th>
+                                    <th>Thickness (mm)</th>
+                                    <th>Price ($/m²)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="priceBookTable">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="margin-top: 24px; display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+                    <button class="btn btn-secondary" onclick="resetSettings()">🔄 Reset to Defaults</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- New Quote Modal -->
+    <div id="newQuoteModal" class="modal-overlay">
+        <div class="modal" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Create New Quotation</h3>
+                <button class="modal-close" onclick="closeModal('newQuoteModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="quoteAlertBanner"></div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Client *</label>
+                        <select class="form-select" id="quoteClient" onchange="onClientSelect()">
+                            <option value="">Select Client</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Project Name</label>
+                        <input type="text" class="form-input" id="quoteProject" placeholder="e.g., Warehouse Roof – Jurong">
+                    </div>
+                </div>
+
+                <h4 style="margin: 20px 0 12px;">Product Lines</h4>
+                <div id="productLines">
+                    <div class="form-row product-line" style="align-items: flex-end; margin-bottom: 12px;">
+                        <div class="form-group" style="flex: 2;">
+                            <label class="form-label">Product Type</label>
+                            <select class="form-select product-type" onchange="updateProductLine(this)">
+                                <option value="">Select Product</option>
+                                <option value="weathertip">Weathertip 200</option>
+                                <option value="flashing">Flashing</option>
+                                <option value="capping">Capping</option>
+                                <option value="clip">Clip</option>
+                                <option value="zip">Zip</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Material</label>
+                            <select class="form-select product-material" onchange="updateProductLine(this)">
+                                <option value="steel">Steel</option>
+                                <option value="aluminium">Aluminium</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Thickness (mm)</label>
+                            <select class="form-select product-thickness" onchange="updateProductLine(this)">
+                                <option value="0.35">0.35</option>
+                                <option value="0.40">0.40</option>
+                                <option value="0.45">0.45</option>
+                                <option value="0.50">0.50</option>
+                                <option value="0.60">0.60</option>
+                                <option value="0.70">0.70</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Size (mm)</label>
+                            <select class="form-select product-size">
+                                <option value="">N/A</option>
+                                <option value="300">300</option>
+                                <option value="400">400</option>
+                                <option value="450">450</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Qty (m²)</label>
+                            <input type="number" class="form-input product-qty" value="100" onchange="updateProductLine(this)">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Unit Price ($)</label>
+                            <input type="number" class="form-input product-price" step="0.01" onchange="updateProductLine(this)">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Total ($)</label>
+                            <input type="text" class="form-input product-total" readonly>
+                        </div>
+                        <button class="btn btn-secondary" onclick="removeProductLine(this)" style="margin-bottom: 12px;">✕</button>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="addProductLine()" style="margin-top: 12px;">+ Add Product Line</button>
+
+                <h4 style="margin: 20px 0 12px;">Accessories</h4>
+                <div id="accessoryLines">
+                </div>
+                <button class="btn btn-secondary" onclick="addAccessoryLine()">+ Add Accessory</button>
+
+                <div style="margin-top: 24px; padding: 20px; background: var(--bg-light); border-radius: 10px;">
+                    <div class="form-row">
+                        <div></div>
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>Subtotal:</span>
+                                <span id="quoteSubtotal">$0.00</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span id="quoteTaxLabel">GST (9%):</span>
+                                <span id="quoteTax">$0.00</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 18px; border-top: 2px solid var(--border); padding-top: 12px;">
+                                <span>TOTAL:</span>
+                                <span id="quoteTotal">$0.00</span>
+                            </div>
+                            <div style="margin-top: 12px; font-size: 13px; color: var(--text-muted);">
+                                Valid until: <strong id="quoteValidUntil"></strong>
+                            </div>
+                            <div id="minTonWarning" style="margin-top: 12px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('newQuoteModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveQuote()">Save Quotation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Client Modal -->
+    <div id="newClientModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create New Client</h3>
+                <button class="modal-close" onclick="closeModal('newClientModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Company/Client Name *</label>
+                    <input type="text" class="form-input" id="clientName" placeholder="e.g., ABC Construction Pte Ltd">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">WhatsApp Number *</label>
+                    <input type="tel" class="form-input" id="clientWhatsApp" placeholder="e.g., +65 9123 4567">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-input" id="clientEmail" placeholder="e.g., contact@abc.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <textarea class="form-input" id="clientAddress" rows="3" placeholder="Full address"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('newClientModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveClient()">Save Client</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New PO Modal -->
+    <div id="newPOModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create Purchase Order</h3>
+                <button class="modal-close" onclick="closeModal('newPOModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">PO Number *</label>
+                    <input type="text" class="form-input" id="poNumber" placeholder="e.g., PO-1026">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Supplier *</label>
+                    <select class="form-select" id="poSupplier">
+                        <option value="">Select Supplier</option>
+                        <option value="ABC Steel Traders">ABC Steel Traders</option>
+                        <option value="MetalOne Supplies">MetalOne Supplies</option>
+                        <option value="SteelCorp International">SteelCorp International</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Price per Ton ($)</label>
+                        <input type="number" class="form-input" id="poPrice" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Coil Count</label>
+                        <input type="number" class="form-input" id="poCoilCount" value="1" readonly>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('newPOModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="savePO()">Create PO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Quote Modal -->
+    <div id="viewQuoteModal" class="modal-overlay">
+        <div class="modal" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 id="viewQuoteTitle">Quotation Q-00001</h3>
+                <button class="modal-close" onclick="closeModal('viewQuoteModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="viewQuoteBody">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('viewQuoteModal')">Close</button>
+                <button class="btn btn-primary" id="shareWhatsapp" onclick="shareWhatsapp()">📱 WhatsApp</button>
+                <button class="btn btn-primary" id="shareEmail" onclick="shareEmail()">📧 Email</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== STATE MANAGEMENT ====================
+        let currentUser = null;
+        let currentRole = null;
+        let selectedQuote = null;
+
+        const defaultSettings = {
+            companyName: 'RollForm Industries Pte Ltd',
+            currencyCode: 'SGD',
+            currencySymbol: '$',
+            taxName: 'GST',
+            taxRate: 9,
+            taxMode: 'exclusive',
+            minTonValue: 12000,
+            minTonMode: 'warn',
+            quoteValidityDays: 7,
+            steelDensity: 7850,
+            aluDensity: 2700
+        };
+
+        const priceBook = [
+            { product: 'weathertip', material: 'steel', thickness: 0.35, price: 38.00 },
+            { product: 'weathertip', material: 'steel', thickness: 0.40, price: 42.00 },
+            { product: 'weathertip', material: 'steel', thickness: 0.45, price: 45.00 },
+            { product: 'weathertip', material: 'steel', thickness: 0.50, price: 49.00 },
+            { product: 'weathertip', material: 'steel', thickness: 0.60, price: 56.00 },
+            { product: 'weathertip', material: 'aluminium', thickness: 0.45, price: 62.00 },
+            { product: 'weathertip', material: 'aluminium', thickness: 0.50, price: 67.00 },
+            { product: 'weathertip', material: 'aluminium', thickness: 0.60, price: 75.00 },
+            { product: 'flashing', material: 'steel', thickness: 0.45, price: 42.00 },
+            { product: 'flashing', material: 'steel', thickness: 0.60, price: 54.00 },
+            { product: 'capping', material: 'steel', thickness: 0.45, price: 40.00 },
+            { product: 'capping', material: 'steel', thickness: 0.60, price: 52.00 },
+            { product: 'clip', material: 'steel', thickness: 0.45, price: 2.50 },
+            { product: 'clip', material: 'steel', thickness: 0.60, price: 3.20 },
+            { product: 'zip', material: 'steel', thickness: 0.45, price: 3.00 },
+            { product: 'zip', material: 'steel', thickness: 0.60, price: 3.80 }
+        ];
+
+        let settings = { ...defaultSettings };
+        let clients = [
+            { id: 1, name: 'ABC Construction Pte Ltd', whatsapp: '+65 9123 4567', email: 'contact@abc.com', address: '123 Industrial Park, Singapore 629123' },
+            { id: 2, name: 'BuildRight Contractors', whatsapp: '+65 8765 4321', email: 'info@buildright.sg', address: '456 Tuas Avenue, Singapore 638765' },
+            { id: 3, name: 'Premier Roofing Solutions', whatsapp: '+65 9988 7766', email: 'sales@premierroofing.com', address: '789 Woodlands Loop, Singapore 737890' }
+        ];
+
+        let quotations = [
+            { 
+                id: 1, 
+                quoteNo: 'Q-00091', 
+                clientId: 1, 
+                clientName: 'ABC Construction Pte Ltd',
+                project: 'Warehouse Roof – Jurong', 
+                items: [
+                    { type: 'product', description: 'Weathertip 200 – steel 0.45mm', qty: 320, unit: 'm²', unitPrice: 45.00, total: 14400.00 },
+                    { type: 'accessory', description: 'Flashing 300', qty: 60, unit: 'm', unitPrice: 42.00, total: 2520.00 },
+                    { type: 'accessory', description: 'Clip', qty: 150, unit: 'pc', unitPrice: 2.50, total: 375.00 }
+                ],
+                subtotal: 17295.00,
+                tax: 1556.55,
+                total: 18851.55,
+                status: 'sent',
+                issueDate: '2026-01-10',
+                validUntil: '2026-01-17',
+                createdBy: 'sales'
+            },
+            { 
+                id: 2, 
+                quoteNo: 'Q-00092', 
+                clientId: 2, 
+                clientName: 'BuildRight Contractors',
+                project: 'Factory Extension – Woodlands', 
+                items: [
+                    { type: 'product', description: 'Weathertip 200 – steel 0.60mm', qty: 450, unit: 'm²', unitPrice: 56.00, total: 25200.00 },
+                    { type: 'accessory', description: 'Capping 400', qty: 80, unit: 'm', unitPrice: 52.00, total: 4160.00 }
+                ],
+                subtotal: 29360.00,
+                tax: 2642.40,
+                total: 32002.40,
+                status: 'accepted',
+                issueDate: '2026-01-08',
+                validUntil: '2026-01-15',
+                createdBy: 'sales'
+            },
+            { 
+                id: 3, 
+                quoteNo: 'Q-00093', 
+                clientId: 3, 
+                clientName: 'Premier Roofing Solutions',
+                project: 'Commercial Complex – Tampines', 
+                items: [
+                    { type: 'product', description: 'Weathertip 200 – aluminium 0.60mm', qty: 280, unit: 'm²', unitPrice: 75.00, total: 21000.00 }
+                ],
+                subtotal: 21000.00,
+                tax: 1890.00,
+                total: 22890.00,
+                status: 'draft',
+                issueDate: '2026-01-12',
+                validUntil: '2026-01-19',
+                createdBy: 'sales'
+            },
+            { 
+                id: 4, 
+                quoteNo: 'Q-00094', 
+                clientId: 1, 
+                clientName: 'ABC Construction Pte Ltd',
+                project: 'Storage Facility – Senoko', 
+                items: [
+                    { type: 'product', description: 'Weathertip 200 – steel 0.45mm', qty: 200, unit: 'm²', unitPrice: 45.00, total: 9000.00 }
+                ],
+                subtotal: 9000.00,
+                tax: 810.00,
+                total: 9810.00,
+                status: 'expired',
+                issueDate: '2025-12-20',
+                validUntil: '2025-12-27',
+                createdBy: 'sales'
+            }
+        ];
+
+        let coils = [
+            { id: 1, coilCode: 'SC-88121-A', poNumber: 'PO-1023', supplier: 'ABC Steel Traders', material: 'steel', thickness: 0.45, width: 1200, weight: 5000, length: 1179.5, remainingWeight: 3200, remainingLength: 756.8, status: 'balance', arrivalDate: '2026-01-05' },
+            { id: 2, coilCode: 'SC-88121-B', poNumber: 'PO-1023', supplier: 'ABC Steel Traders', material: 'steel', thickness: 0.45, width: 1200, weight: 4980, length: 1174.8, remainingWeight: 4980, remainingLength: 1174.8, status: 'arrived', arrivalDate: '2026-01-05' },
+            { id: 3, coilCode: 'SC-88122', poNumber: 'PO-1023', supplier: 'ABC Steel Traders', material: 'steel', thickness: 0.60, width: 1200, weight: 6000, length: 1061.6, remainingWeight: 2100, remainingLength: 372.5, status: 'in_use', arrivalDate: '2026-01-06' },
+            { id: 4, coilCode: 'AL-5501', poNumber: 'PO-1024', supplier: 'MetalOne Supplies', material: 'aluminium', thickness: 0.70, width: 1000, weight: 2000, length: 1058.2, remainingWeight: 2000, remainingLength: 1058.2, status: 'arrived', arrivalDate: '2026-01-08' },
+            { id: 5, coilCode: 'SC-90001', poNumber: 'PO-1025', supplier: 'ABC Steel Traders', material: 'steel', thickness: 0.45, width: 1200, weight: 5000, length: 1179.5, remainingWeight: 5000, remainingLength: 1179.5, status: 'arrived', arrivalDate: '2026-01-10' }
+        ];
+
+        let purchaseOrders = [
+            { id: 1, poNumber: 'PO-1023', supplier: 'ABC Steel Traders', coilCount: 3, price: 2850, priceUnit: 'per_ton', status: 'arrived' },
+            { id: 2, poNumber: 'PO-1024', supplier: 'MetalOne Supplies', coilCount: 1, price: 6.20, priceUnit: 'per_m2', status: 'arrived' },
+            { id: 3, poNumber: 'PO-1025', supplier: 'ABC Steel Traders', coilCount: 1, price: 2900, priceUnit: 'per_ton', status: 'arrived' },
+            { id: 4, poNumber: 'PO-1026', supplier: 'SteelCorp International', coilCount: 2, price: 2750, priceUnit: 'per_ton', status: 'in_transit' }
+        ];
+
+        // ==================== AUTHENTICATION ====================
+        function selectRole(role) {
+            currentRole = role;
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.role === role) btn.classList.add('active');
+            });
+            document.getElementById('loginBtn').disabled = false;
+            document.getElementById('selectedRoleText').textContent = role.charAt(0).toUpperCase() + role.slice(1);
+        }
+
+        function login() {
+            if (!currentRole) return;
+
+            const users = {
+                superadmin: { name: 'Admin User', email: 'admin@rollform.com' },
+                sales: { name: 'Sales User', email: 'sales@rollform.com' },
+                warehouse: { name: 'Warehouse User', email: 'warehouse@rollform.com' }
+            };
+
+            currentUser = users[currentRole];
+            
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').classList.add('active');
+            
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('userRole').textContent = currentRole.replace('_', ' ').toUpperCase();
+            
+            applyRBAC();
+            navigateTo('dashboard');
+            loadDashboard();
+        }
+
+        function logout() {
+            currentUser = null;
+            currentRole = null;
+            document.getElementById('appContainer').classList.remove('active');
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('loginBtn').disabled = true;
+            document.getElementById('selectedRoleText').textContent = '...';
+        }
+
+        function applyRBAC() {
+            const elements = document.querySelectorAll('.superadmin-only, .sales-only, .warehouse-only');
+            elements.forEach(el => {
+                el.classList.add('hidden');
+                if (el.classList.contains(currentRole + '-only')) {
+                    el.classList.remove('hidden');
+                }
+            });
+
+            // Hide nav items based on role
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if (item.classList.contains('superadmin-only') && currentRole !== 'superadmin') {
+                    item.classList.add('hidden');
+                } else if (item.classList.contains('sales-only') && currentRole !== 'sales') {
+                    item.classList.add('hidden');
+                } else if (item.classList.contains('warehouse-only') && currentRole !== 'warehouse') {
+                    item.classList.add('hidden');
+                }
+            });
+        }
+
+        // ==================== NAVIGATION ====================
+        function navigateTo(page) {
+            document.querySelectorAll('.page-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(page).classList.add('active');
+
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            event.target.closest('.nav-link')?.classList.add('active');
+
+            switch(page) {
+                case 'dashboard':
+                    loadDashboard();
+                    break;
+                case 'quotations':
+                    loadQuotations();
+                    break;
+                case 'clients':
+                    loadClients();
+                    break;
+                case 'inventory':
+                    loadInventory();
+                    break;
+                case 'purchase-orders':
+                    loadPurchaseOrders();
+                    break;
+                case 'settings':
+                    loadSettings();
+                    break;
+            }
+        }
+
+        // ==================== DASHBOARD ====================
+        function loadDashboard() {
+            const activeQuotes = quotations.filter(q => q.status === 'sent' || q.status === 'draft').length;
+            const acceptedThisMonth = quotations.filter(q => q.status === 'accepted').length;
+            const coilsInStock = coils.filter(c => c.status === 'arrived' || c.status === 'balance').length;
+            const lowStock = coils.filter(c => c.remainingWeight < 1000).length;
+
+            document.getElementById('statQuotes').textContent = activeQuotes;
+            document.getElementById('statAccepted').textContent = acceptedThisMonth;
+            document.getElementById('statCoils').textContent = coilsInStock;
+            document.getElementById('statLowStock').textContent = lowStock;
+
+            const recentQuotes = quotations.slice(0, 5);
+            const tbody = document.getElementById('recentQuotesTable');
+            tbody.innerHTML = recentQuotes.map(q => `
+                <tr>
+                    <td><strong>${q.quoteNo}</strong></td>
+                    <td>${q.clientName}</td>
+                    <td>${q.project || '—'}</td>
+                    <td>${settings.currencySymbol}${q.total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                    <td><span class="status-badge ${q.status}">${q.status.replace('_', ' ')}</span></td>
+                    <td>${formatDate(q.validUntil)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ==================== QUOTATIONS ====================
+        function loadQuotations() {
+            const tbody = document.getElementById('quotesTable');
+            tbody.innerHTML = quotations.map(q => `
+                <tr>
+                    <td><strong>${q.quoteNo}</strong></td>
+                    <td>${q.clientName}</td>
+                    <td>${q.project || '—'}</td>
+                    <td>${q.items.length} items</td>
+                    <td>${settings.currencySymbol}${q.total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                    <td><span class="status-badge ${q.status}">${q.status.replace('_', ' ')}</span></td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="viewQuote(${q.id})">View</button>
+                        ${q.status === 'draft' ? `<button class="btn btn-primary" onclick="editQuote(${q.id})">Edit</button>` : ''}
+                        ${q.status === 'expired' ? `<button class="btn btn-secondary" onclick="cloneQuote(${q.id})">Clone</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterQuotes(query) {
+            const rows = document.querySelectorAll('#quotesTable tr');
+            query = query.toLowerCase();
+            rows.forEach((row, index) => {
+                if (index === 0) return; // Skip header
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function openNewQuoteModal() {
+            document.getElementById('quoteClient').innerHTML = '<option value="">Select Client</option>' + 
+                clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById('quoteProject').value = '';
+            document.getElementById('productLines').innerHTML = '';
+            document.getElementById('accessoryLines').innerHTML = '';
+            document.getElementById('quoteAlertBanner').innerHTML = '';
+            addProductLine();
+            updateQuoteTotals();
+            closeModal('newQuoteModal');
+            setTimeout(() => openModal('newQuoteModal'), 100);
+        }
+
+        function addProductLine() {
+            const container = document.getElementById('productLines');
+            const div = document.createElement('div');
+            div.className = 'form-row product-line';
+            div.style.cssText = 'align-items: flex-end; margin-bottom: 12px;';
+            div.innerHTML = `
+                <div class="form-group" style="flex: 2;">
+                    <label class="form-label">Product Type</label>
+                    <select class="form-select product-type" onchange="updateProductLine(this)">
+                        <option value="">Select Product</option>
+                        <option value="weathertip">Weathertip 200</option>
+                        <option value="flashing">Flashing</option>
+                        <option value="capping">Capping</option>
+                        <option value="clip">Clip</option>
+                        <option value="zip">Zip</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Material</label>
+                    <select class="form-select product-material" onchange="updateProductLine(this)">
+                        <option value="steel">Steel</option>
+                        <option value="aluminium">Aluminium</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Thickness (mm)</label>
+                    <select class="form-select product-thickness" onchange="updateProductLine(this)">
+                        <option value="0.35">0.35</option>
+                        <option value="0.40">0.40</option>
+                        <option value="0.45">0.45</option>
+                        <option value="0.50">0.50</option>
+                        <option value="0.60">0.60</option>
+                        <option value="0.70">0.70</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Size (mm)</label>
+                    <select class="form-select product-size">
+                        <option value="">N/A</option>
+                        <option value="300">300</option>
+                        <option value="400">400</option>
+                        <option value="450">450</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Qty (m²)</label>
+                    <input type="number" class="form-input product-qty" value="100" onchange="updateProductLine(this)">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Unit Price ($)</label>
+                    <input type="number" class="form-input product-price" step="0.01" onchange="updateProductLine(this)">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Total ($)</label>
+                    <input type="text" class="form-input product-total" readonly>
+                </div>
+                <button class="btn btn-secondary" onclick="removeProductLine(this)" style="margin-bottom: 12px;">✕</button>
+            `;
+            container.appendChild(div);
+            updateProductLine(div.querySelector('.product-type'));
+        }
+
+        function removeProductLine(btn) {
+            btn.parentElement.remove();
+            updateQuoteTotals();
+        }
+
+        function updateProductLine(element) {
+            const row = element.closest('.product-line');
+            const type = row.querySelector('.product-type').value;
+            const material = row.querySelector('.product-material').value;
+            const thickness = parseFloat(row.querySelector('.product-thickness').value);
+            const size = row.querySelector('.product-size').value;
+            const qty = parseFloat(row.querySelector('.product-qty').value) || 0;
+            
+            // Show/hide size field based on product type
+            const sizeField = row.querySelector('.product-size').closest('.form-group');
+            if (type === 'flashing' || type === 'capping') {
+                sizeField.style.display = 'block';
+                row.querySelector('.product-size').disabled = false;
+            } else {
+                sizeField.style.display = 'none';
+                row.querySelector('.product-size').value = '';
+            }
+
+            // Auto-fill price from price book
+            const priceEntry = priceBook.find(p => 
+                p.product === type && 
+                p.material === material && 
+                Math.abs(p.thickness - thickness) < 0.01
+            );
+
+            if (priceEntry && !row.querySelector('.product-price').value) {
+                row.querySelector('.product-price').value = priceEntry.price.toFixed(2);
+            }
+
+            const price = parseFloat(row.querySelector('.product-price').value) || 0;
+            const total = qty * price;
+            row.querySelector('.product-total').value = total.toFixed(2);
+
+            updateQuoteTotals();
+        }
+
+        function addAccessoryLine() {
+            const container = document.getElementById('accessoryLines');
+            const div = document.createElement('div');
+            div.className = 'form-row';
+            div.style.cssText = 'align-items: flex-end; margin-bottom: 12px;';
+            div.innerHTML = `
+                <div class="form-group" style="flex: 2;">
+                    <label class="form-label">Accessory Type</label>
+                    <select class="form-select accessory-type" onchange="updateAccessoryLine(this)">
+                        <option value="">Select Accessory</option>
+                        <option value="flashing">Flashing</option>
+                        <option value="capping">Capping</option>
+                        <option value="clip">Clip</option>
+                        <option value="zip">Zip</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Size (mm)</label>
+                    <select class="form-select accessory-size">
+                        <option value="">N/A</option>
+                        <option value="300">300</option>
+                        <option value="400">400</option>
+                        <option value="450">450</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Qty</label>
+                    <input type="number" class="form-input accessory-qty" value="50" onchange="updateAccessoryLine(this)">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Unit Price ($)</label>
+                    <input type="number" class="form-input accessory-price" step="0.01" value="2.50" onchange="updateAccessoryLine(this)">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label">Total ($)</label>
+                    <input type="text" class="form-input accessory-total" readonly>
+                </div>
+                <button class="btn btn-secondary" onclick="this.parentElement.remove(); updateQuoteTotals();" style="margin-bottom: 12px;">✕</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function updateAccessoryLine(element) {
+            const row = element.closest('.form-row');
+            const type = row.querySelector('.accessory-type').value;
+            const size = row.querySelector('.accessory-size').value;
+            const qty = parseFloat(row.querySelector('.accessory-qty').value) || 0;
+            const price = parseFloat(row.querySelector('.accessory-price').value) || 0;
+            
+            const sizeField = row.querySelector('.accessory-size').closest('.form-group');
+            if (type === 'flashing' || type === 'capping') {
+                sizeField.style.display = 'block';
+            } else {
+                sizeField.style.display = 'none';
+                row.querySelector('.accessory-size').value = '';
+            }
+
+            const total = qty * price;
+            row.querySelector('.accessory-total').value = total.toFixed(2);
+            updateQuoteTotals();
+        }
+
+        function updateQuoteTotals() {
+            let subtotal = 0;
+            let minTonResult = null;
+
+            // Product lines
+            document.querySelectorAll('.product-line').forEach(line => {
+                const total = parseFloat(line.querySelector('.product-total').value) || 0;
+                subtotal += total;
+
+                // Calculate $/ton for min guardrail
+                const type = line.querySelector('.product-type').value;
+                const material = line.querySelector('.product-material').value;
+                const thickness = parseFloat(line.querySelector('.product-thickness').value) || 0;
+                const unitPrice = parseFloat(line.querySelector('.product-price').value) || 0;
+
+                if (type && material && thickness > 0 && unitPrice > 0) {
+                    const density = material === 'steel' ? settings.steelDensity : settings.aluDensity;
+                    const kgPerM2 = thickness * density / 1000; // thickness in mm, density in kg/m³
+                    const effTon = (unitPrice / kgPerM2) * 1000;
+                    
+                    if (!minTonResult || effTon < minTonResult.effTon) {
+                        minTonResult = { effTon, unitPrice, thickness, material };
+                    }
+                }
+            });
+
+            // Accessory lines
+            document.querySelectorAll('.accessory-line, .form-row:not(.product-line)').forEach(line => {
+                const totalInput = line.querySelector('.accessory-total');
+                if (totalInput) {
+                    subtotal += parseFloat(totalInput.value) || 0;
+                }
+            });
+
+            // Tax calculation
+            let tax = 0;
+            if (settings.taxMode === 'exclusive') {
+                tax = subtotal * settings.taxRate / 100;
+            } else {
+                tax = subtotal * settings.taxRate / (100 + settings.taxRate);
+            }
+
+            const total = subtotal + tax;
+
+            document.getElementById('quoteSubtotal').textContent = `${settings.currencySymbol}${subtotal.toFixed(2)}`;
+            document.getElementById('quoteTaxLabel').textContent = `${settings.taxName} (${settings.taxRate}%):`;
+            document.getElementById('quoteTax').textContent = `${settings.currencySymbol}${tax.toFixed(2)}`;
+            document.getElementById('quoteTotal').textContent = `${settings.currencySymbol}${total.toFixed(2)}`;
+
+            // Valid until date
+            const validDate = new Date();
+            validDate.setDate(validDate.getDate() + settings.quoteValidityDays);
+            document.getElementById('quoteValidUntil').textContent = formatDate(validDate.toISOString().split('T')[0]);
+
+            // Min $/ton warning
+            const warningDiv = document.getElementById('minTonWarning');
+            if (minTonResult && minTonResult.effTon < settings.minTonValue) {
+                const mode = settings.minTonMode;
+                const message = `⚠️ Effective $/ton: ${settings.currencySymbol}${minTonResult.effTon.toLocaleString('en-US', {maximumFractionDigits: 0})} (below minimum ${settings.currencySymbol}${settings.minTonValue.toLocaleString()})`;
+                
+                if (mode === 'warn') {
+                    warningDiv.innerHTML = `<div class="alert-banner warning">${message}<br><small>Override requires reason before saving.</small></div>`;
+                } else {
+                    warningDiv.innerHTML = `<div class="alert-banner danger">${message}<br><small>Cannot proceed - price blocked by guardrail.</small></div>`;
+                }
+            } else {
+                warningDiv.innerHTML = '';
+            }
+        }
+
+        function saveQuote() {
+            const clientId = document.getElementById('quoteClient').value;
+            if (!clientId) {
+                alert('Please select a client');
+                return;
+            }
+
+            const client = clients.find(c => c.id === parseInt(clientId));
+            const items = [];
+            let subtotal = 0;
+
+            // Collect product lines
+            document.querySelectorAll('.product-line').forEach(line => {
+                const type = line.querySelector('.product-type').value;
+                if (!type) return;
+
+                const material = line.querySelector('.product-material').value;
+                const thickness = line.querySelector('.product-thickness').value;
+                const size = line.querySelector('.product-size').value;
+                const qty = parseFloat(line.querySelector('.product-qty').value) || 0;
+                const price = parseFloat(line.querySelector('.product-price').value) || 0;
+                const total = qty * price;
+                subtotal += total;
+
+                let description = '';
+                if (type === 'weathertip') {
+                    description = `Weathertip 200 – ${material} ${thickness}mm`;
+                } else if (type === 'flashing' || type === 'capping') {
+                    description = `${type.charAt(0).toUpperCase() + type.slice(1)} ${size}`;
+                } else {
+                    description = `${type.charAt(0).toUpperCase() + type.slice(1)}`;
+                }
+
+                items.push({
+                    type: 'product',
+                    description,
+                    qty,
+                    unit: type === 'clip' || type === 'zip' ? 'pc' : 'm²',
+                    unitPrice: price,
+                    total
+                });
+            });
+
+            // Collect accessory lines
+            document.querySelectorAll('#accessoryLines .form-row').forEach(line => {
+                const type = line.querySelector('.accessory-type').value;
+                if (!type) return;
+
+                const size = line.querySelector('.accessory-size').value;
+                const qty = parseFloat(line.querySelector('.accessory-qty').value) || 0;
+                const price = parseFloat(line.querySelector('.accessory-price').value) || 0;
+                const total = qty * price;
+                subtotal += total;
+
+                let description = type.charAt(0).toUpperCase() + type.slice(1);
+                if (size) description += ` ${size}`;
+
+                items.push({
+                    type: 'accessory',
+                    description,
+                    qty,
+                    unit: 'm',
+                    unitPrice: price,
+                    total
+                });
+            });
+
+            // Check min $/ton guardrail
+            const warningDiv = document.getElementById('minTonWarning');
+            if (warningDiv.querySelector('.alert-banner.danger')) {
+                alert('Price is below minimum $/ton threshold. Cannot save.');
+                return;
+            }
+
+            if (warningDiv.querySelector('.alert-banner.warning')) {
+                const reason = prompt('Price is below minimum $/ton. Please provide override reason:');
+                if (!reason) return;
+            }
+
+            // Calculate totals
+            let tax = 0;
+            if (settings.taxMode === 'exclusive') {
+                tax = subtotal * settings.taxRate / 100;
+            } else {
+                tax = subtotal * settings.taxRate / (100 + settings.taxRate);
+            }
+            const total = subtotal + tax;
+
+            const newQuote = {
+                id: quotations.length + 1,
+                quoteNo: `Q-${String(quotations.length + 1).padStart(5, '0')}`,
+                clientId: parseInt(clientId),
+                clientName: client.name,
+                project: document.getElementById('quoteProject').value,
+                items,
+                subtotal: Math.round(subtotal * 100) / 100,
+                tax: Math.round(tax * 100) / 100,
+                total: Math.round(total * 100) / 100,
+                status: 'draft',
+                issueDate: new Date().toISOString().split('T')[0],
+                validUntil: new Date(Date.now() + settings.quoteValidityDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                createdBy: currentRole
+            };
+
+            quotations.unshift(newQuote);
+            closeModal('newQuoteModal');
+            loadQuotations();
+            alert(`Quotation ${newQuote.quoteNo} saved successfully!`);
+        }
+
+        function viewQuote(id) {
+            const quote = quotations.find(q => q.id === id);
+            if (!quote) return;
+
+            selectedQuote = quote;
+            document.getElementById('viewQuoteTitle').textContent = `Quotation ${quote.quoteNo}`;
+            
+            const itemsHtml = quote.items.map((item, idx) => `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>${item.description}</td>
+                    <td>${item.qty.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                    <td>${item.unit}</td>
+                    <td>${settings.currencySymbol}${item.unitPrice.toFixed(2)}</td>
+                    <td>${settings.currencySymbol}${item.total.toFixed(2)}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('viewQuoteBody').innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <strong>Client:</strong> ${quote.clientName}<br>
+                    <strong>Project:</strong> ${quote.project || '—'}<br>
+                    <strong>Status:</strong> <span class="status-badge ${quote.status}">${quote.status.replace('_', ' ')}</span>
+                </div>
+                <table style="margin-bottom: 20px;">
+                    <thead>
+                        <tr><th>#</th><th>Description</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th></tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <div style="background: var(--bg-light); padding: 16px; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Subtotal:</span><span>${settings.currencySymbol}${quote.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>${settings.taxName} (${settings.taxRate}%):</span><span>${settings.currencySymbol}${quote.tax.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 18px; border-top: 2px solid var(--border); padding-top: 12px;">
+                        <span>TOTAL:</span><span>${settings.currencySymbol}${quote.total.toFixed(2)}</span>
+                    </div>
+                    <div style="margin-top: 12px; font-size: 13px; color: var(--text-muted);">
+                        <strong>Issue Date:</strong> ${formatDate(quote.issueDate)}<br>
+                        <strong>Valid Until:</strong> ${formatDate(quote.validUntil)}
+                    </div>
+                </div>
+            `;
+
+            openModal('viewQuoteModal');
+        }
+
+        function shareWhatsapp() {
+            if (!selectedQuote) return;
+            const msg = `Hi! Your quotation ${selectedQuote.quoteNo} for ${selectedQuote.clientName} is ready.\n\nTotal: ${settings.currencySymbol}${selectedQuote.total.toFixed(2)}\nValid until: ${formatDate(selectedQuote.validUntil)}\n\nPlease review and let us know if you have any questions.`;
+            const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
+        function shareEmail() {
+            if (!selectedQuote) return;
+            const subject = `Quotation ${selectedQuote.quoteNo} - ${selectedQuote.clientName}`;
+            const body = `Dear ${selectedQuote.clientName},\n\nPlease find attached your quotation ${selectedQuote.quoteNo}.\n\nTotal: ${settings.currencySymbol}${selectedQuote.total.toFixed(2)}\nValid until: ${formatDate(selectedQuote.validUntil)}\n\nBest regards,\n${settings.companyName}`;
+            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+
+        function editQuote(id) {
+            alert('Edit functionality would clone the quote for version control. For POC, please use Clone instead.');
+        }
+
+        function cloneQuote(id) {
+            const original = quotations.find(q => q.id === id);
+            if (!original) return;
+
+            const cloned = {
+                ...original,
+                id: quotations.length + 1,
+                quoteNo: `Q-${String(quotations.length + 1).padStart(5, '0')}`,
+                status: 'draft',
+                issueDate: new Date().toISOString().split('T')[0],
+                validUntil: new Date(Date.now() + settings.quoteValidityDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            };
+
+            quotations.unshift(cloned);
+            loadQuotations();
+            alert(`Cloned to ${cloned.quoteNo}`);
+        }
+
+        // ==================== CLIENTS ====================
+        function loadClients() {
+            const tbody = document.getElementById('clientsTable');
+            tbody.innerHTML = clients.map(c => {
+                const quoteCount = quotations.filter(q => q.clientId === c.id).length;
+                return `
+                    <tr>
+                        <td><strong>${c.name}</strong></td>
+                        <td>${c.whatsapp}</td>
+                        <td>${c.email || '—'}</td>
+                        <td>${quoteCount} quotes</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="viewClient(${c.id})">View</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterClients(query) {
+            const rows = document.querySelectorAll('#clientsTable tr');
+            query = query.toLowerCase();
+            rows.forEach((row, index) => {
+                if (index === 0) return;
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function openNewClientModal() {
+            document.getElementById('clientName').value = '';
+            document.getElementById('clientWhatsApp').value = '';
+            document.getElementById('clientEmail').value = '';
+            document.getElementById('clientAddress').value = '';
+            openModal('newClientModal');
+        }
+
+        function saveClient() {
+            const name = document.getElementById('clientName').value.trim();
+            const whatsapp = document.getElementById('clientWhatsApp').value.trim();
+            
+            if (!name || !whatsapp) {
+                alert('Name and WhatsApp are required');
+                return;
+            }
+
+            const newClient = {
+                id: clients.length + 1,
+                name,
+                whatsapp,
+                email: document.getElementById('clientEmail').value.trim(),
+                address: document.getElementById('clientAddress').value.trim()
+            };
+
+            clients.push(newClient);
+            closeModal('newClientModal');
+            loadClients();
+            alert('Client saved successfully!');
+        }
+
+        function viewClient(id) {
+            const client = clients.find(c => c.id === id);
+            if (!client) return;
+
+            const clientQuotes = quotations.filter(q => q.clientId === id);
+            alert(`${client.name}\n\nWhatsApp: ${client.whatsapp}\nEmail: ${client.email || '—'}\nAddress: ${client.address || '—'}\n\nTotal Quotations: ${clientQuotes.length}`);
+        }
+
+        // ==================== INVENTORY ====================
+        function loadInventory() {
+            const totalWeight = coils.reduce((sum, c) => sum + c.remainingWeight, 0);
+            const totalLength = coils.reduce((sum, c) => sum + c.remainingLength, 0);
+            
+            document.getElementById('totalWeight').textContent = `${totalWeight.toLocaleString()} kg`;
+            document.getElementById('totalLength').textContent = `${totalLength.toLocaleString()} m`;
+            document.getElementById('coilCount').textContent = coils.length;
+
+            // Group by material and thickness
+            const grouped = {};
+            coils.forEach(c => {
+                const key = `${c.material}-${c.thickness}`;
+                if (!grouped[key]) {
+                    grouped[key] = { material: c.material, thickness: c.thickness, coils: [], weight: 0, length: 0 };
+                }
+                grouped[key].coils.push(c);
+                grouped[key].weight += c.remainingWeight;
+                grouped[key].length += c.remainingLength;
+            });
+
+            const tbody = document.getElementById('inventoryTable');
+            tbody.innerHTML = Object.values(grouped).map(g => `
+                <tr>
+                    <td>${g.material.charAt(0).toUpperCase() + g.material.slice(1)}</td>
+                    <td>${g.thickness} mm</td>
+                    <td>${g.coils.length}</td>
+                    <td>${g.weight.toLocaleString()} kg</td>
+                    <td>${Math.round(g.length).toLocaleString()} m</td>
+                    <td><span class="status-badge ${g.coils[0].status}">${g.coils[0].status.replace('_', ' ')}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function refreshInventory() {
+            loadInventory();
+            alert('Inventory refreshed!');
+        }
+
+        function simulateScan() {
+            const codes = ['SC-NEW-001', 'SC-NEW-002', 'AL-NEW-001'];
+            const randomCode = codes[Math.floor(Math.random() * codes.length)];
+            alert(`Scanned coil: ${randomCode}\n\nIn a real implementation, this would:\n1. Decode barcode via camera\n2. Check if coil exists\n3. Update status or create new entry\n4. Log movement in ledger`);
+        }
+
+        // ==================== PURCHASE ORDERS ====================
+        function loadPurchaseOrders() {
+            const tbody = document.getElementById('poTable');
+            tbody.innerHTML = purchaseOrders.map(po => `
+                <tr>
+                    <td><strong>${po.poNumber}</strong></td>
+                    <td>${po.supplier}</td>
+                    <td>${po.coilCount} coils</td>
+                    <td>${settings.currencySymbol}${po.price.toFixed(2)} / ${po.priceUnit.replace('_', ' ')}</td>
+                    <td><span class="status-badge ${po.status}">${po.status.replace('_', ' ')}</span></td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="viewPO('${po.poNumber}')">View</button>
+                        ${po.status === 'in_transit' ? `<button class="btn btn-primary" onclick="simulateArrival('${po.poNumber}')">✓ Arrive</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openNewPOModal() {
+            document.getElementById('poNumber').value = `PO-${1026 + purchaseOrders.length}`;
+            document.getElementById('poSupplier').value = '';
+            document.getElementById('poPrice').value = '';
+            openModal('newPOModal');
+        }
+
+        function savePO() {
+            const poNumber = document.getElementById('poNumber').value.trim();
+            const supplier = document.getElementById('poSupplier').value;
+            const price = parseFloat(document.getElementById('poPrice').value);
+
+            if (!poNumber || !supplier) {
+                alert('PO Number and Supplier are required');
+                return;
+            }
+
+            const newPO = {
+                id: purchaseOrders.length + 1,
+                poNumber,
+                supplier,
+                coilCount: 1,
+                price: price || 0,
+                priceUnit: 'per_ton',
+                status: 'in_transit'
+            };
+
+            purchaseOrders.push(newPO);
+            closeModal('newPOModal');
+            loadPurchaseOrders();
+            alert(`PO ${poNumber} created!`);
+        }
+
+        function viewPO(poNumber) {
+            const po = purchaseOrders.find(p => p.poNumber === poNumber);
+            if (!po) return;
+
+            const poCoils = coils.filter(c => c.poNumber === poNumber);
+            alert(`PO: ${po.poNumber}\nSupplier: ${po.supplier}\nCoils: ${po.coilCount}\nPrice: ${settings.currencySymbol}${po.price} / ${po.priceUnit}\nStatus: ${po.status}\n\nCoils:\n${poCoils.map(c => `  - ${c.coilCode}: ${c.weight}kg (${c.status})`).join('\n')}`);
+        }
+
+        function simulateArrival(poNumber) {
+            alert(`Simulating arrival scan for ${poNumber}...\n\nIn production:\n1. Scan coil barcode with camera\n2. Status changes: in_transit → arrived\n3. Movement logged in ledger\n4. Stock balance updated immediately`);
+            
+            const po = purchaseOrders.find(p => p.poNumber === poNumber);
+            if (po) {
+                po.status = 'arrived';
+                loadPurchaseOrders();
+            }
+        }
+
+        function importCSV() {
+            alert(`CSV Import Template:\n\npo_number,supplier,coil_code,material,thickness_mm,width_mm,weight_kg,length_m,price,price_unit\n\nExample:\nPO-1023,ABC Steel Traders,SC-88121-A,steel,0.45,1200,5000,1179.5,2850,per_ton\n\nIn production:\n1. Upload CSV file\n2. Preview with validation badges\n3. Prompt for missing prices\n4. Create coils with status 'in_transit'`);
+        }
+
+        // ==================== SETTINGS ====================
+        function loadSettings() {
+            document.getElementById('settingCompanyName').value = settings.companyName;
+            document.getElementById('settingCurrencyCode').value = settings.currencyCode;
+            document.getElementById('settingCurrencySymbol').value = settings.currencySymbol;
+            document.getElementById('settingTaxName').value = settings.taxName;
+            document.getElementById('settingTaxRate').value = settings.taxRate;
+            document.getElementById('settingTaxMode').value = settings.taxMode;
+            document.getElementById('settingMinTonValue').value = settings.minTonValue;
+            document.getElementById('settingMinTonMode').value = settings.minTonMode;
+            document.getElementById('settingQuoteValidity').value = settings.quoteValidityDays;
+            document.getElementById('settingSteelDensity').value = settings.steelDensity;
+            document.getElementById('settingAluDensity').value = settings.aluDensity;
+
+            const tbody = document.getElementById('priceBookTable');
+            tbody.innerHTML = priceBook.map((p, idx) => `
+                <tr>
+                    <td>${p.product.charAt(0).toUpperCase() + p.product.slice(1)}</td>
+                    <td>${p.material.charAt(0).toUpperCase() + p.material.slice(1)}</td>
+                    <td>${p.thickness} mm</td>
+                    <td>${settings.currencySymbol}${p.price.toFixed(2)}</td>
+                    <td><button class="btn btn-secondary" onclick="editPrice(${idx})">Edit</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function saveSettings() {
+            settings.companyName = document.getElementById('settingCompanyName').value;
+            settings.currencyCode = document.getElementById('settingCurrencyCode').value;
+            settings.currencySymbol = document.getElementById('settingCurrencySymbol').value;
+            settings.taxName = document.getElementById('settingTaxName').value;
+            settings.taxRate = parseFloat(document.getElementById('settingTaxRate').value);
+            settings.taxMode = document.getElementById('settingTaxMode').value;
+            settings.minTonValue = parseFloat(document.getElementById('settingMinTonValue').value);
+            settings.minTonMode = document.getElementById('settingMinTonMode').value;
+            settings.quoteValidityDays = parseInt(document.getElementById('settingQuoteValidity').value);
+            settings.steelDensity = parseInt(document.getElementById('settingSteelDensity').value);
+            settings.aluDensity = parseInt(document.getElementById('settingAluDensity').value);
+
+            alert('Settings saved successfully!\n\nThese settings affect:\n- Quotation calculations\n- Min $/ton guardrails\n- PDF generation\n- Tax computations');
+        }
+
+        function resetSettings() {
+            if (confirm('Reset all settings to defaults?')) {
+                settings = { ...defaultSettings };
+                loadSettings();
+            }
+        }
+
+        function editPrice(idx) {
+            const p = priceBook[idx];
+            const newPrice = prompt(`Edit price for ${p.product} ${p.material} ${p.thickness}mm:`, p.price);
+            if (newPrice !== null) {
+                priceBook[idx].price = parseFloat(newPrice) || p.price;
+                loadSettings();
+            }
+        }
+
+        // ==================== UTILITIES ====================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Coil-to-Quote CRM POC loaded successfully!');
+            console.log('Available roles: superadmin, sales, warehouse');
+        });
+    </script>
+</body>
+</html>
